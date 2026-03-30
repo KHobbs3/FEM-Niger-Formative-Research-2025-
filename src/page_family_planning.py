@@ -4,11 +4,11 @@ import plotly.graph_objects as go
 from src.fem_colours import FEM_ORANGE, FEM_BROWN, FEM_TAUPE, FEM_STEEL, FEM_NAVY
 from src.data_loader import (
     load_fp_funnel,
-    # load_fp_timing,
-    # load_fp_methods,
-    # load_fp_reason_use,
-    # load_fp_intent,
-    # load_fp_nonuse_reasons,
+    load_fp_timing,
+    load_fp_methods,
+    load_fp_reason_use,
+    load_fp_intent,
+    load_fp_nonuse_reasons,
 )
 
 FEM_PALETTE = [FEM_ORANGE, FEM_BROWN, FEM_TAUPE, FEM_STEEL, FEM_NAVY]
@@ -236,17 +236,17 @@ def render():
 
     df_funnel  = load_fp_funnel()
     df_timing  = load_fp_timing()
-    # df_methods = load_fp_methods()
+    df_methods = load_fp_methods()
     df_reason  = load_fp_reason_use()
-    # df_intent  = load_fp_intent()
-    # df_nonuse  = load_fp_nonuse_reasons()
+    df_intent  = load_fp_intent()
+    df_nonuse  = load_fp_nonuse_reasons()
 
     split_by  = st.radio("Split all charts by", list(SPLIT_MAP.keys()), horizontal=True)
     split_col = SPLIT_MAP[split_by]
 
     st.divider()
-    render_awareness_use(df_funnel), df_timing, df_reason, split_col)
+    render_awareness_use(df_funnel, df_timing, df_reason, split_col)
     st.divider()
-    # render_methods(df_methods, split_col)
-    # st.divider()
-    # render_intent(df_intent, df_nonuse)
+    render_methods(df_methods, split_col)
+    st.divider()
+    render_intent(df_intent, df_nonuse)

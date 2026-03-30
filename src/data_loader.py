@@ -87,25 +87,25 @@ def load_radio():
 def load_fp_funnel():
     return _load("1HfnLz7AaEBRVkWcX5sv8F9uUnmFveju-")
 
-# # @st.cache_data
-# def load_fp_timing():
-#     return _load("fp_timing.csv", index_col=0)
+# @st.cache_data
+def load_fp_timing():
+    return _load("1Oa8g4iGf_IuJiMriVUSZTFILGkutG29c")
 
-# # @st.cache_data
-# def load_fp_methods():
-#     return _load("fp_methods.csv", index_col=0)
+# @st.cache_data
+def load_fp_methods():
+    return _load("1qus99-nxSJVZSbX1x7yA7wCTJyRpCZPQ")
 
-# # @st.cache_data
-# def load_fp_reason_use():
-#     return _load("fp_reason_use.csv", index_col=0)
+# @st.cache_data
+def load_fp_reason_use():
+    return _load("1KRrqi-N_tj3GoFAXD8pmns2GgXdxZzws")
 
-# # @st.cache_data
-# def load_fp_intent():
-#     return _load("fp_intent.csv", index_col=0)
+# @st.cache_data
+def load_fp_intent():
+    return _load("1n4r4uPOmsqvMADJDncrvxvzpIFF0y48r")
 
-# # @st.cache_data
-# def load_fp_nonuse_reasons():
-#     return _load("fp_nonuse_reasons.csv", index_col=0)
+# @st.cache_data
+def load_fp_nonuse_reasons():
+    return _load("1My0suLDCypo9G0xbHdMuaHrUocZJKMix")
 
 
 # ── Personality page ──────────────────────────────────────────────────────────
