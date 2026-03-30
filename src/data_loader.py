@@ -58,7 +58,7 @@ def load_access_affordability():
 
 # @st.cache_data
 def load_access_composite():
-    return _load("download&id=1pcCZAUorv8coIqW2k_yjkQNXX8rpaSUR", index_col=0)
+    return _load("1pcCZAUorv8coIqW2k_yjkQNXX8rpaSUR", index_col=0)
 
 
 # ── Statements page ───────────────────────────────────────────────────────────
