@@ -72,7 +72,7 @@ def load_statements_heatmap():
 
 # @st.cache_data
 def load_fp_funnel():
-    return _load("HfnLz7AaEBRVkWcX5sv8F9uUnmFveju-")
+    return _load("1HfnLz7AaEBRVkWcX5sv8F9uUnmFveju-")
 
 # @st.cache_data
 def load_fp_timing():
