@@ -1,14 +1,19 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from src.data_loader import load_radio
 import re
 from src.fem_colours import FEM_ORANGE, FEM_BROWN, FEM_TAUPE, FEM_STEEL, FEM_NAVY, FEM_SCALE
 
-def clean_column_name(col):
-    col = re.sub(r'^\d+_\d+_', '', col)
-    col = re.sub(r'_+\d+$', '', col)
-    col = col.replace('_', ' ').strip().title()
-    return col
+# @st.cache_data
+
+# def load_radio_data(path="data/radio_summary.csv"):
+#     try:
+#         df = pd.read_csv(path, index_col=0)
+#         df.columns = [clean_column_name(c) for c in df.columns]
+#         return df
+#     except FileNotFoundError:
+#         return None
 
 def parse_radio_cell(cell_str):
     result = {}
@@ -23,19 +28,11 @@ def parse_radio_cell(cell_str):
         result[name] = float(pct)
     return result
 
-@st.cache_data
-def load_radio_data(path="data/radio_summary.csv"):
-    try:
-        df = pd.read_csv(path, index_col=0)
-        df.columns = [clean_column_name(c) for c in df.columns]
-        return df
-    except FileNotFoundError:
-        return None
 
 def shorten_question(q):
     first = q.split("\n")[0].strip()
-    if len(first) > 90:
-        first = first[:87] + "..."
+    if len(first) > 100:
+        first = first[:100] + "..."
     return first
 
 def render_heatmap(df, question, min_pct=5):
@@ -86,6 +83,7 @@ def render_heatmap(df, question, min_pct=5):
 
 def render(df=None):
     st.header("Radio")
+    df = load_radio()
 
     if df is None:
         df = load_radio_data()

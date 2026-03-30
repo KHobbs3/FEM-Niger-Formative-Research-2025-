@@ -67,6 +67,19 @@ def load_access_composite():
 def load_statements_heatmap():
     return _load("1ezpz_FqegwF1GAPrhtsjQARHI9xxEjT9")
 
+# ── Radio page ──────────────────────────────────────────────────────
+def clean_column_name(col):
+    col = re.sub(r'^\d+_\d+_', '', col)
+    col = re.sub(r'_+\d+$', '', col)
+    col = col.replace('_', ' ').strip().title()
+    return col
+
+# @st.cache_data
+def load_radio():
+    df = _load("1l2n9CJcenNTt7CUpf-krApXe9fDsi4r4")
+    df.columns = [clean_column_name(c) for c in df.columns]
+    df.set_index("Question", inplace=True)
+    return df
 
 # ── Family planning page ──────────────────────────────────────────────────────
 
