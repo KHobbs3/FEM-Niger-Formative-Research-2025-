@@ -1,0 +1,252 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from src.fem_colours import FEM_ORANGE, FEM_BROWN, FEM_TAUPE, FEM_STEEL, FEM_NAVY
+from src.data_loader import (
+    load_fp_funnel,
+    load_fp_timing,
+    load_fp_methods,
+    load_fp_reason_use,
+    load_fp_intent,
+    load_fp_nonuse_reasons,
+)
+
+FEM_PALETTE = [FEM_ORANGE, FEM_BROWN, FEM_TAUPE, FEM_STEEL, FEM_NAVY]
+
+SPLIT_MAP = {
+    "User group": "use",
+    "Gender":     "gender",
+    "Age group":  "age_group",
+}
+
+_MISSING = (
+    "Pre-aggregated data not found. "
+    "Run `python pipeline/run_pipeline.py --pages family_planning` to generate it."
+)
+
+
+# ── Chart helpers ─────────────────────────────────────────────────────────────
+
+def _hbar(series, title, top_n=12, key=None):
+    series = series.head(top_n)
+    if series is None or series.empty:
+        return
+    colors = (FEM_PALETTE * (len(series) // len(FEM_PALETTE) + 1))[:len(series)]
+    fig = go.Figure(go.Bar(
+        y=series.index.astype(str),
+        x=series.values,
+        orientation="h",
+        marker_color=colors,
+        text=[f"{v*100:.1f}%" for v in series.values],
+        textposition="outside",
+        cliponaxis=False,
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis=dict(showgrid=False, showticklabels=False,
+                   range=[0, series.max() * 1.35] if len(series) else [0, 1]),
+        yaxis=dict(showgrid=False, autorange="reversed"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=80, t=36, b=10),
+        height=max(180, len(series) * 36 + 60),
+        showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+def _grouped_bar(df_long, split_col, label_col, value_col, title,
+                 top_n=8, key=None):
+    if df_long is None or df_long.empty:
+        return
+    sub = df_long[df_long["split"] == split_col]
+    if sub.empty:
+        st.info("No data for this split.")
+        return
+
+    top_labels = (
+        sub.groupby(label_col)[value_col].max()
+        .nlargest(top_n).index.tolist()
+    )
+    sub = sub[sub[label_col].isin(top_labels)]
+    groups = sorted(sub["group"].unique())
+
+    traces = []
+    for i, grp in enumerate(groups):
+        gdf = sub[sub["group"] == grp].set_index(label_col)[value_col]
+        traces.append(go.Bar(
+            name=str(grp),
+            x=gdf.index.astype(str),
+            y=gdf.values,
+            marker_color=FEM_PALETTE[i % len(FEM_PALETTE)],
+            text=[f"{v*100:.0f}%" for v in gdf.values],
+            textposition="outside",
+        ))
+    if not traces:
+        return
+    fig = go.Figure(traces)
+    fig.update_layout(
+        title=title,
+        barmode="group",
+        yaxis=dict(tickformat=".0%", showgrid=False, title="% of respondents"),
+        xaxis=dict(showgrid=False, tickangle=-30),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=40, b=80, l=10, r=10),
+        height=360,
+        legend_title=split_col,
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+def _overall_series(df_long, label_col="label", value_col="proportion", question=None):
+    if df_long is None or df_long.empty:
+        return pd.Series(dtype=float)
+    mask = (df_long["split"] == "none") & (df_long["group"] == "all")
+    if question and "question" in df_long.columns:
+        mask &= df_long["question"] == question
+    return df_long[mask].set_index(label_col)[value_col].sort_values(ascending=False)
+
+
+# ── Funnel ────────────────────────────────────────────────────────────────────
+
+def render_funnel(df_funnel, split_col):
+    st.markdown("**Contraceptive use funnel**")
+    if df_funnel is None or df_funnel.empty:
+        st.warning(_MISSING)
+        return
+
+    grp_options = ["All"] + sorted(
+        df_funnel[df_funnel["split"] == split_col]["group"].dropna().unique().tolist()
+    )
+    selected = st.selectbox("Filter group", grp_options, key="fp_funnel_grp")
+    grp_val = "all" if selected == "All" else selected
+
+    sub = df_funnel[(df_funnel["split"] == split_col) & (df_funnel["group"] == grp_val)]
+    if sub.empty:
+        st.info("No data for this selection.")
+        return
+
+    row = sub.iloc[0]
+    values = [
+        (row.get("aware",       0) or 0) * 100,
+        (row.get("ever_used",   0) or 0) * 100,
+        (row.get("current_use", 0) or 0) * 100,
+    ]
+    fig = go.Figure(go.Funnel(
+        y=["Aware of methods", "Ever used", "Currently using"],
+        x=values,
+        textinfo="value+percent initial",
+        texttemplate="%{value:.1f}%",
+        marker_color=[FEM_ORANGE, FEM_BROWN, FEM_NAVY],
+        connector=dict(line=dict(color=FEM_TAUPE, width=2)),
+    ))
+    fig.update_layout(
+        height=280,
+        margin=dict(l=20, r=20, t=10, b=10),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig, use_container_width=True, key="fp_funnel")
+
+
+# ── Section renderers ─────────────────────────────────────────────────────────
+
+def render_awareness_use(df_funnel, df_timing, df_reason, split_col):
+    st.subheader("Awareness & use")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        render_funnel(df_funnel, split_col)
+    with col2:
+        st.markdown("**Preferred timing of next pregnancy**")
+        if df_timing is not None:
+            _hbar(_overall_series(df_timing), "", key="fp_timing")
+
+    st.markdown("**Reason for current/recent use**")
+    if df_reason is not None:
+        _grouped_bar(df_reason, split_col, "label", "proportion", "",
+                     key=f"fp_reason_{split_col}")
+
+
+def render_methods(df_methods, split_col):
+    st.subheader("Methods known vs. ever used vs. currently using")
+    if df_methods is None or df_methods.empty:
+        st.warning(_MISSING)
+        return
+
+    col1, col2, col3 = st.columns(3)
+    for col_obj, mtype, title, key in [
+        (col1, "known",   "Methods known",  "fp_known"),
+        (col2, "ever",    "Ever used",       "fp_ever"),
+        (col3, "current", "Currently using", "fp_curr"),
+    ]:
+        with col_obj:
+            sub = df_methods[
+                (df_methods["method_type"] == mtype) &
+                (df_methods["split"] == "none") &
+                (df_methods["group"] == "all")
+            ]
+            if not sub.empty:
+                _hbar(sub.set_index("method")["proportion"]
+                        .sort_values(ascending=False),
+                      title, top_n=10, key=key)
+
+    st.markdown("**Methods by split**")
+    tab1, tab2, tab3 = st.tabs(["Known", "Ever used", "Current"])
+    for tab, mtype, kpfx in [
+        (tab1, "known",   "fpsk"),
+        (tab2, "ever",    "fpse"),
+        (tab3, "current", "fpsc"),
+    ]:
+        with tab:
+            sub = df_methods[df_methods["method_type"] == mtype]
+            _grouped_bar(sub, split_col, "method", "proportion", "",
+                         top_n=8, key=f"{kpfx}_{split_col}")
+
+
+def render_intent(df_intent, df_nonuse):
+    st.subheader("Future intent & non-use reasons")
+
+    col1, col2 = st.columns(2)
+    for col_obj, question, title, key in [
+        (col1, "future_intent",  "Intends to use contraception in future", "fp_intent"),
+        (col2, "considered_use", "Considered use (non-users)",             "fp_considered"),
+    ]:
+        with col_obj:
+            st.markdown(f"**{title}**")
+            if df_intent is not None:
+                sub = df_intent[
+                    (df_intent["question"] == question) &
+                    (df_intent["split"] == "none") &
+                    (df_intent["group"] == "all")
+                ]
+                if not sub.empty:
+                    _hbar(sub.set_index("response")["proportion"], "", key=key)
+
+    if df_nonuse is not None and not df_nonuse.empty:
+        with st.expander("Reasons for non-use (free text sample)"):
+            st.dataframe(df_nonuse, use_container_width=True, hide_index=True)
+
+
+# ── Main render ───────────────────────────────────────────────────────────────
+
+def render():
+    st.title("Family Planning")
+
+    df_funnel  = load_fp_funnel()
+    df_timing  = load_fp_timing()
+    df_methods = load_fp_methods()
+    df_reason  = load_fp_reason_use()
+    df_intent  = load_fp_intent()
+    df_nonuse  = load_fp_nonuse_reasons()
+
+    split_by  = st.radio("Split all charts by", list(SPLIT_MAP.keys()), horizontal=True)
+    split_col = SPLIT_MAP[split_by]
+
+    st.divider()
+    render_awareness_use(df_funnel, df_timing, df_reason, split_col)
+    st.divider()
+    render_methods(df_methods, split_col)
+    st.divider()
+    render_intent(df_intent, df_nonuse)

@@ -1,0 +1,184 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
+from src.fem_colours import FEM_ORANGE, FEM_BROWN, FEM_TAUPE, FEM_STEEL, FEM_NAVY, FEM_PALETTE
+from src.data_loader import (
+    load_personas_centroids,
+    load_personas_profile,
+)
+
+_MISSING = (
+    "Pre-aggregated persona data not found. "
+    "Run `python pipeline/run_pipeline.py --pages personas` to generate it."
+)
+
+PROFILE_VARS = ["gender", "age_group", "use", "occupation", "religion", "life_goals"]
+
+
+# ── Chart helpers ─────────────────────────────────────────────────────────────
+
+def _hbar(series, title, top_n=10, key=None):
+    series = series.head(top_n)
+    if series is None or series.empty:
+        return
+    colors = (FEM_PALETTE * (len(series) // len(FEM_PALETTE) + 1))[:len(series)]
+    fig = go.Figure(go.Bar(
+        y=series.index.astype(str),
+        x=series.values,
+        orientation="h",
+        marker_color=colors,
+        text=[f"{v*100:.1f}%" for v in series.values],
+        textposition="outside",
+        cliponaxis=False,
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis=dict(showgrid=False, showticklabels=False,
+                   range=[0, series.max() * 1.35] if len(series) else [0, 1]),
+        yaxis=dict(showgrid=False, autorange="reversed"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=10, r=80, t=36, b=10),
+        height=max(180, len(series) * 34 + 60),
+        showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True, key=key)
+
+
+# ── Section renderers ─────────────────────────────────────────────────────────
+
+def render_centroid_table(df_centroids):
+    st.subheader("Persona summary")
+    st.caption(
+        "Each row is a cluster centroid — the representative values for that persona. "
+        "Count shows the number of respondents in each cluster."
+    )
+
+    display = df_centroids.copy()
+    display.index.name = "Persona"
+
+    # Format count columns
+    for col in ["count", "weighted_count"]:
+        if col in display.columns:
+            display[col] = display[col].apply(
+                lambda v: f"{int(v):,}" if pd.notna(v) else ""
+            )
+
+    st.dataframe(display, use_container_width=True)
+
+
+def render_persona_profiles(df_profile, n_personas):
+    st.subheader("Persona deep-dive")
+    st.caption("Select a persona to see the distribution of key variables within that cluster.")
+
+    persona_id = st.selectbox(
+        "Select persona",
+        list(range(n_personas)),
+        format_func=lambda x: f"Persona {x}",
+        key="persona_select",
+    )
+
+    sub = df_profile[df_profile["persona"] == persona_id].copy()
+
+    # Show count
+    count_row = sub[sub["variable"] == "_count"]
+    if not count_row.empty:
+        n = count_row[count_row["value"] == "n"]["proportion"].values
+        wn = count_row[count_row["value"] == "weighted_n"]["proportion"].values
+        c1, c2 = st.columns(2)
+        c1.metric("Respondents", f"{int(n[0]):,}" if len(n) else "N/A")
+        c2.metric("Weighted N", f"{wn[0]:,.0f}" if len(wn) else "N/A")
+
+    # Profile charts per variable
+    profile_vars = [v for v in sub["variable"].unique() if not v.startswith("_")]
+    cols = st.columns(2)
+    for i, var in enumerate(profile_vars):
+        var_sub = sub[sub["variable"] == var]
+        if var_sub.empty:
+            continue
+        # If numeric (single "mean" row), show as metric
+        if set(var_sub["value"].tolist()) == {"mean"}:
+            val = var_sub["proportion"].iloc[0]
+            cols[i % 2].metric(var.replace("_", " ").title(), f"{val:.1f}")
+        else:
+            s = var_sub.set_index("value")["proportion"].sort_values(ascending=False)
+            with cols[i % 2]:
+                _hbar(s, var.replace("_", " ").title(),
+                      key=f"persona_{persona_id}_{var}")
+
+
+def render_comparison(df_profile, n_personas):
+    st.subheader("Persona comparison")
+    st.caption("Compare the distribution of one variable across all personas.")
+
+    profile_vars = [v for v in df_profile["variable"].unique() if not v.startswith("_")]
+    selected_var = st.selectbox("Select variable", profile_vars,
+                                format_func=lambda v: v.replace("_", " ").title(),
+                                key="persona_compare_var")
+
+    sub = df_profile[df_profile["variable"] == selected_var].copy()
+
+    # Skip numeric mean rows in comparison
+    if set(sub["value"].tolist()) == {"mean"}:
+        st.info("Comparison chart not available for numeric variables.")
+        return
+
+    traces = []
+    for i, pid in enumerate(range(n_personas)):
+        pdata = sub[sub["persona"] == pid].set_index("value")["proportion"]
+        traces.append(go.Bar(
+            name=f"Persona {pid}",
+            x=pdata.index.astype(str),
+            y=pdata.values,
+            marker_color=FEM_PALETTE[i % len(FEM_PALETTE)],
+            text=[f"{v*100:.0f}%" for v in pdata.values],
+            textposition="outside",
+        ))
+
+    if not traces:
+        return
+
+    fig = go.Figure(traces)
+    fig.update_layout(
+        barmode="group",
+        yaxis=dict(tickformat=".0%", showgrid=False, title="% of persona"),
+        xaxis=dict(showgrid=False, tickangle=-30),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=20, b=80, l=10, r=10),
+        height=360,
+        legend_title="Persona",
+    )
+    st.plotly_chart(fig, use_container_width=True, key="persona_compare")
+
+
+# ── Main render ───────────────────────────────────────────────────────────────
+
+def render():
+    st.header("Personas")
+    st.caption("Cluster-based respondent profiles derived from survey data.")
+
+    df_centroids = load_personas_centroids()
+    df_profile   = load_personas_profile()
+
+    if df_centroids is None or df_centroids.empty:
+        st.warning(_MISSING)
+        return
+
+    n_personas = len(df_centroids)
+
+    render_centroid_table(df_centroids)
+    st.divider()
+
+    if df_profile is not None and not df_profile.empty:
+        tab1, tab2 = st.tabs(["Deep-dive", "Comparison"])
+        with tab1:
+            render_persona_profiles(df_profile, n_personas)
+        with tab2:
+            render_comparison(df_profile, n_personas)
+    else:
+        st.warning(
+            "Persona profile data not found. "
+            "Run `python pipeline/run_pipeline.py --pages personas` to generate it."
+        )
