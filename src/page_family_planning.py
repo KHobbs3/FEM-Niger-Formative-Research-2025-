@@ -1,3 +1,14 @@
+"""
+page_family_planning.py  —  improved version
+Changes vs original:
+  • Funnel group dropdown: deduplicated; "all" / "All" unified → single "All"
+    entry; groups sorted alphabetically after "All".
+  • Non-use reasons table: index column hidden; Hausa/French labels translated
+    to English via a best-effort mapping (falls back gracefully if label not
+    recognised).
+  • Minor UX: split radio uses consistent labels.
+"""
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -24,6 +35,39 @@ _MISSING = (
     "Run `python pipeline/run_pipeline.py --pages family_planning` to generate it."
 )
 
+# ── Translation map for non-use reason labels ─────────────────────────────────
+# Add/extend as more Hausa or French labels become known.
+_NONUSE_TRANSLATIONS = {
+    # Hausa
+    "ban son": "I don't want to",
+    "ban sani ba": "I don't know",
+    "mijina baya son": "My husband doesn't want to",
+    "bana bukatar hana ciki": "I don't need contraception",
+    "tsoron illa": "Fear of side effects",
+    "addini": "Religious reasons",
+    "tsada": "Too expensive",
+    "nisa da asibiti": "Clinic too far away",
+    "ba ya cikin asibiti": "Not available at clinic",
+    "ina son yara": "I want (more) children",
+    # French
+    "mon mari ne veut pas": "My husband doesn't want to",
+    "effets secondaires": "Fear of side effects",
+    "religion": "Religious reasons",
+    "trop cher": "Too expensive",
+    "loin de la clinique": "Clinic too far away",
+    "indisponible": "Not available",
+    "je veux des enfants": "I want (more) children",
+    "je ne sais pas": "I don't know",
+}
+
+
+def _translate_label(label):
+    """Return English translation if label is in map; else return original."""
+    if pd.isna(label):
+        return label
+    lower = str(label).lower().strip()
+    return _NONUSE_TRANSLATIONS.get(lower, label)
+
 
 # ── Chart helpers ─────────────────────────────────────────────────────────────
 
@@ -43,8 +87,10 @@ def _hbar(series, title, top_n=12, key=None):
     ))
     fig.update_layout(
         title=title,
-        xaxis=dict(showgrid=False, showticklabels=False,
-                   range=[0, series.max() * 1.35] if len(series) else [0, 1]),
+        xaxis=dict(
+            showgrid=False, showticklabels=False,
+            range=[0, series.max() * 1.35] if len(series) else [0, 1],
+        ),
         yaxis=dict(showgrid=False, autorange="reversed"),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -116,15 +162,32 @@ def render_funnel(df_funnel, split_col):
         st.warning(_MISSING)
         return
 
-    grp_options = ["All"] + sorted(
-        df_funnel[df_funnel["split"] == split_col]["group"].dropna().unique().tolist()
+    # Build clean, deduplicated group list
+    raw_groups = (
+        df_funnel[df_funnel["split"] == split_col]["group"]
+        .dropna()
+        .unique()
+        .tolist()
     )
-    selected = st.selectbox("Filter group", grp_options, key="fp_funnel_grp")
-    grp_val = "all" if selected == "All" else selected
+    # Normalise: treat "all", "All", "ALL" as the same
+    normalised = {}
+    for g in raw_groups:
+        key = g.strip().lower()
+        if key == "all":
+            normalised["All"] = "all"   # display → actual value
+        else:
+            normalised[g.strip()] = g.strip()
 
-    sub = df_funnel[(df_funnel["split"] == split_col) & (df_funnel["group"] == grp_val)]
+    grp_options = ["All"] + sorted(k for k in normalised if k != "All")
+    selected = st.selectbox("Filter group", grp_options, key="fp_funnel_grp")
+    grp_val = normalised.get(selected, selected.lower())
+
+    sub = df_funnel[
+        (df_funnel["split"] == split_col) &
+        (df_funnel["group"].str.strip().str.lower() == grp_val.lower())
+    ]
     if sub.empty:
-        st.info("No data for this selection.")
+        st.info("No funnel data for this selection.")
         return
 
     row = sub.iloc[0]
@@ -133,6 +196,11 @@ def render_funnel(df_funnel, split_col):
         (row.get("ever_used",   0) or 0) * 100,
         (row.get("current_use", 0) or 0) * 100,
     ]
+
+    if all(v == 0 for v in values):
+        st.info("Funnel data is all zeros for this selection — check pipeline output.")
+        return
+
     fig = go.Figure(go.Funnel(
         y=["Aware of methods", "Ever used", "Currently using"],
         x=values,
@@ -188,9 +256,10 @@ def render_methods(df_methods, split_col):
                 (df_methods["group"] == "all")
             ]
             if not sub.empty:
-                _hbar(sub.set_index("method")["proportion"]
-                        .sort_values(ascending=False),
-                      title, top_n=10, key=key)
+                _hbar(
+                    sub.set_index("method")["proportion"].sort_values(ascending=False),
+                    title, top_n=10, key=key,
+                )
 
     st.markdown("**Methods by split**")
     tab1, tab2, tab3 = st.tabs(["Known", "Ever used", "Current"])
@@ -225,8 +294,20 @@ def render_intent(df_intent, df_nonuse):
                     _hbar(sub.set_index("response")["proportion"], "", key=key)
 
     if df_nonuse is not None and not df_nonuse.empty:
-        with st.expander("Reasons for non-use (free text sample)"):
-            st.dataframe(df_nonuse, use_container_width=True, hide_index=True)
+        st.markdown("**Reasons for non-use**")
+
+        # Translate any Hausa/French labels to English
+        display = df_nonuse.copy()
+        for col in display.columns:
+            if display[col].dtype == object:
+                display[col] = display[col].apply(_translate_label)
+
+        # Drop unnamed index-like columns
+        display = display.loc[
+            :, ~display.columns.str.match(r"^Unnamed")
+        ].reset_index(drop=True)
+
+        st.dataframe(display, use_container_width=True, hide_index=True)
 
 
 # ── Main render ───────────────────────────────────────────────────────────────

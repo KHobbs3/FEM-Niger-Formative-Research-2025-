@@ -158,9 +158,16 @@ def _likert_stacked(df_long, question, title, split_col=None, key=None):
         yaxis=dict(showgrid=False),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(t=40, b=10, l=10, r=10),
-        height=max(180, len(y_labels) * 52 + 80),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.35),
+        margin=dict(t=40, b=160, l=10, r=10),
+        height=max(280, len(y_labels) * 52 + 220),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.55,
+            xanchor="left",
+            x=0,
+            font=dict(size=11),
+        ),
     )
     st.plotly_chart(fig, use_container_width=True, key=key)
 
@@ -258,15 +265,13 @@ def render_wellbeing(df_wellbeing, split_col):
         st.warning(_MISSING)
         return
 
-    col1, col2 = st.columns(2)
-    with col1:
-        _likert_stacked(df_wellbeing, "happiness",
-                        "How often do you feel joy in daily life?",
-                        split_col=split_col, key="pg_happy")
-    with col2:
-        _likert_stacked(df_wellbeing, "satisfaction",
-                        "How often do you feel satisfied with life overall?",
-                        split_col=split_col, key="pg_satisfy")
+    # Stack vertically so the horizontal legend has full width and doesn't overlap bars
+    _likert_stacked(df_wellbeing, "happiness",
+                    "How often do you feel joy in daily life?",
+                    split_col=split_col, key="pg_happy")
+    _likert_stacked(df_wellbeing, "satisfaction",
+                    "How often do you feel satisfied with life overall?",
+                    split_col=split_col, key="pg_satisfy")
 
 
 # ── Main render ───────────────────────────────────────────────────────────────

@@ -1,3 +1,15 @@
+"""
+page_access.py  —  improved version
+Changes vs original:
+  • Transport modes: section now correctly filters split=="mode" rows and
+    falls back gracefully if data is missing.
+  • Accessibility section: clearer, friendlier chart titles and inline
+    explanations; the "travel gap" metric renamed to avoid the confusing
+    double-negative ("further than willing → access gap").
+  • Composite section: plain-English description added above the chart.
+  • Section captions rewritten throughout for clarity.
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -26,10 +38,12 @@ _MISSING = (
 )
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Generic chart helpers ─────────────────────────────────────────────────────
 
-def _hbar(series, title, pct=True, key=None):
+def _hbar(series, title, pct=True, caption=None, key=None):
     if series is None or series.empty:
+        if caption:
+            st.caption(f"_{caption}_")
         return
     colors = (FEM_PALETTE * (len(series) // len(FEM_PALETTE) + 1))[:len(series)]
     text = [f"{v*100:.1f}%" if pct else f"{v:.1f}" for v in series.values]
@@ -57,6 +71,8 @@ def _hbar(series, title, pct=True, key=None):
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True, key=key)
+    if caption:
+        st.caption(caption)
 
 
 def _get_metric(df_long, metric, split_col):
@@ -80,10 +96,11 @@ def _get_scalar(df_long, metric):
 # ── Section renderers ─────────────────────────────────────────────────────────
 
 def render_availability(df_stockouts, df_responses, split_col):
-    st.subheader("1. Availability")
+    st.subheader("1. Availability — are contraceptives in stock?")
     st.caption(
-        "Are contraceptives stocked when people seek them? "
-        "Users and non-users were asked separate questions."
+        "A stockout happens when someone visits a facility but the "
+        "contraceptive they need is unavailable. "
+        "Users/past users and non-users/future users were asked separate questions."
     )
     if df_stockouts is None:
         st.warning(_MISSING)
@@ -91,70 +108,127 @@ def render_availability(df_stockouts, df_responses, split_col):
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("**Users & past users**")
-        _hbar(_get_metric(df_stockouts, "stockout_users", split_col),
-              "Stockout rate", key="avail_users")
+        st.markdown("**Current & past users**")
+        _hbar(
+            _get_metric(df_stockouts, "stockout_users", split_col),
+            "Experienced a stockout",
+            caption="Share of current/past users who found their method out-of-stock.",
+            key="avail_users",
+        )
         if df_responses is not None:
             sub = df_responses[df_responses["group"] == "users"]
             if not sub.empty:
                 with st.expander("How did users respond to stockouts?"):
-                    st.dataframe(sub[["response", "count"]].reset_index(drop=True),
-                                 use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        sub[["response", "count"]].reset_index(drop=True),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
     with col2:
         st.markdown("**Non-users & future users**")
-        _hbar(_get_metric(df_stockouts, "sought_contraceptives", split_col),
-              "Sought contraceptives", key="avail_sought")
-        _hbar(_get_metric(df_stockouts, "stockout_nonusers_sought", split_col),
-              "Stockout rate (among those who sought)", key="avail_nonusers")
+        _hbar(
+            _get_metric(df_stockouts, "sought_contraceptives", split_col),
+            "Sought contraceptives",
+            caption="Share who actively tried to access contraceptives.",
+            key="avail_sought",
+        )
+        _hbar(
+            _get_metric(df_stockouts, "stockout_nonusers_sought", split_col),
+            "Stockout rate (among those who sought)",
+            caption="Of those who sought contraceptives, share who found them out-of-stock.",
+            key="avail_nonusers",
+        )
         if df_responses is not None:
             sub = df_responses[df_responses["group"] == "nonusers"]
             if not sub.empty:
                 with st.expander("How did non-users respond to stockouts?"):
-                    st.dataframe(sub[["response", "count"]].reset_index(drop=True),
-                                 use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        sub[["response", "count"]].reset_index(drop=True),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
 
 def render_accessibility(df_travel, split_col):
-    st.subheader("2. Accessibility")
-    st.caption("Travel time to facilities, willingness to travel, and the gap between them.")
+    st.subheader("2. Accessibility — how far do people travel?")
+    st.caption(
+        "This section compares actual travel time to a facility against the maximum "
+        "time respondents say they are *willing* to travel. "
+        "When actual travel time exceeds willingness, it signals a distance barrier."
+    )
     if df_travel is None:
         st.warning(_MISSING)
         return
 
     col1, col2 = st.columns(2)
     with col1:
-        _hbar(_get_metric(df_travel, "mean_travel_users", split_col),
-              "Mean travel time — users (mins)", pct=False, key="travel_users")
+        _hbar(
+            _get_metric(df_travel, "mean_travel_users", split_col),
+            "Average journey time — current/past users (minutes)",
+            pct=False,
+            caption="Mean one-way travel time to the facility where they obtain contraceptives.",
+            key="travel_users",
+        )
     with col2:
-        _hbar(_get_metric(df_travel, "mean_travel_nonusers", split_col),
-              "Mean travel time — non-users (mins)", pct=False, key="travel_nonusers")
+        _hbar(
+            _get_metric(df_travel, "mean_travel_nonusers", split_col),
+            "Average journey time — non-users (minutes)",
+            pct=False,
+            caption="Mean one-way travel time non-users would need to reach the nearest facility.",
+            key="travel_nonusers",
+        )
 
-    st.markdown("**Travel time gap** — share of users travelling further than willing")
+    st.markdown("**Distance access gap**")
+    st.caption(
+        "The *distance access gap* is the share of current/past users who travel "
+        "**longer than they say they are willing to**. "
+        "A higher rate means more people face a real distance barrier — "
+        "they are already using contraceptives despite the journey being too long for them."
+    )
     overall = _get_scalar(df_travel, "travel_gap_rate_overall")
     if not np.isnan(overall):
-        st.metric("Overall travel barrier rate (users)", f"{overall*100:.1f}%")
-    _hbar(_get_metric(df_travel, "travel_gap_rate", split_col),
-          f"Travel barrier rate by {split_col}", key="travel_gap")
+        st.metric(
+            "Overall distance access gap (current/past users)",
+            f"{overall*100:.1f}%",
+            help=(
+                "% of current/past users whose actual travel time "
+                "exceeds their stated maximum willingness to travel."
+            ),
+        )
+    _hbar(
+        _get_metric(df_travel, "travel_gap_rate", split_col),
+        f"Distance access gap by {split_col}",
+        key="travel_gap",
+    )
 
-    with st.expander("Transport modes"):
+    with st.expander("How do people get to facilities? (transport modes)"):
         c1, c2 = st.columns(2)
+        found_any = False
         for label, cobj, key in [("users", c1, "tm_u"), ("nonusers", c2, "tm_nu")]:
+            metric_name = f"transport_mode_{label}"
+            # Try both "mode" and "split==none" as possible split keys
             sub = df_travel[
-                (df_travel["metric"] == f"transport_mode_{label}") &
-                (df_travel["split"] == "mode")
+                (df_travel["metric"] == metric_name) &
+                (df_travel["split"].isin(["mode", "none", split_col]))
             ]
+            if sub.empty:
+                # Fallback: any row with this metric
+                sub = df_travel[df_travel["metric"] == metric_name]
             if not sub.empty:
+                found_any = True
+                s = sub.set_index("group")["value"].dropna()
                 with cobj:
-                    _hbar(sub.set_index("group")["value"].dropna(),
-                          f"Transport — {label}", key=key)
+                    _hbar(s, f"Transport modes — {label}", key=key)
+        if not found_any:
+            st.info("Transport mode data not available in the aggregated dataset.")
 
 
 def render_affordability(df_afford, split_col):
-    st.subheader("3. Affordability")
+    st.subheader("3. Affordability — what do contraceptives cost?")
     st.caption(
-        "Contraceptive costs for users/past users vs. "
-        "expected visit cost for non-users/future users."
+        "For current/past users: actual out-of-pocket cost per contraceptive visit. "
+        "For non-users/future users: expected cost of a visit (what they think it would cost)."
     )
     if df_afford is None:
         st.warning(_MISSING)
@@ -162,26 +236,53 @@ def render_affordability(df_afford, split_col):
 
     col1, col2 = st.columns(2)
     with col1:
-        _hbar(_get_metric(df_afford, "mean_cost_users", split_col),
-              "Mean contraceptive cost — users (CFA)", pct=False, key="cost_users")
+        _hbar(
+            _get_metric(df_afford, "mean_cost_users", split_col),
+            "Average cost paid — current/past users (CFA francs)",
+            pct=False,
+            caption="Mean cost per contraceptive visit reported by current and past users.",
+            key="cost_users",
+        )
     with col2:
-        _hbar(_get_metric(df_afford, "mean_cost_nonusers", split_col),
-              "Expected visit cost — non-users (CFA)", pct=False, key="cost_nonusers")
+        _hbar(
+            _get_metric(df_afford, "mean_cost_nonusers", split_col),
+            "Expected visit cost — non-users (CFA francs)",
+            pct=False,
+            caption="Mean expected cost that non-users/future users anticipate paying.",
+            key="cost_nonusers",
+        )
 
     overall_cost = _get_scalar(df_afford, "cost_barrier_overall")
     if not np.isnan(overall_cost):
-        st.metric("Share of users who paid anything", f"{overall_cost*100:.1f}%")
+        st.metric(
+            "Share of current/past users who paid anything",
+            f"{overall_cost*100:.1f}%",
+            help="Proportion of users for whom contraceptives are not free.",
+        )
 
 
 def render_composite(df_composite):
     st.subheader("4. Composite supply indicator")
-    st.caption("Share of respondents facing each supply-side barrier.")
+    st.caption(
+        "This chart brings together all three supply-side barriers — availability, "
+        "accessibility, and affordability — into a single view. "
+        "Each bar shows the share of respondents facing that particular barrier. "
+        "A respondent 'faces' a barrier if they experienced a stockout, travel further "
+        "than they are willing to, or paid for contraceptives."
+    )
     if df_composite is None:
         st.warning(_MISSING)
         return
 
-    overall = (df_composite[df_composite["use_group"] == "all"]
-               .set_index("barrier")["rate"].dropna())
+    overall = (
+        df_composite[df_composite["use_group"] == "all"]
+        .set_index("barrier")["rate"]
+        .dropna()
+    )
+    if overall.empty:
+        st.info("No composite data available.")
+        return
+
     fig = go.Figure(go.Bar(
         x=overall.index,
         y=overall.values,
@@ -190,14 +291,18 @@ def render_composite(df_composite):
         textposition="outside",
     ))
     fig.update_layout(
-        title="Composite supply barrier rates",
-        yaxis=dict(tickformat=".0%", title="Proportion", showgrid=False,
-                   range=[0, overall.max() * 1.3] if not overall.empty else [0, 1]),
-        xaxis=dict(showgrid=False),
+        title="Share of respondents facing each supply barrier (all users)",
+        yaxis=dict(
+            tickformat=".0%",
+            title="Proportion of respondents",
+            showgrid=False,
+            range=[0, overall.max() * 1.3] if not overall.empty else [0, 1],
+        ),
+        xaxis=dict(showgrid=False, title="Supply barrier"),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(t=40, b=20),
-        height=320,
+        margin=dict(t=40, b=60),
+        height=340,
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True, key="composite")
@@ -206,9 +311,15 @@ def render_composite(df_composite):
         breakdown = df_composite[df_composite["use_group"] != "all"].dropna(subset=["rate"])
         if not breakdown.empty:
             fig2 = px.bar(
-                breakdown, x="barrier", y="rate", color="use_group", barmode="group",
+                breakdown,
+                x="barrier",
+                y="rate",
+                color="use_group",
+                barmode="group",
                 text=breakdown["rate"].apply(lambda v: f"{v*100:.1f}%"),
                 color_discrete_sequence=FEM_PALETTE,
+                labels={"barrier": "Supply barrier", "rate": "Proportion",
+                        "use_group": "User group"},
             )
             fig2.update_layout(
                 yaxis=dict(tickformat=".0%", title="Proportion", showgrid=False),
@@ -224,7 +335,13 @@ def render_composite(df_composite):
 # ── Main render ───────────────────────────────────────────────────────────────
 
 def render():
-    st.title("Health Access Barriers")
+    st.title("Access & Supply Barriers")
+    st.caption(
+        "This page analyses whether contraceptives are **available** when people "
+        "seek them, **physically accessible** (travel distance), and **affordable**. "
+        "Use the split selector below to break down all charts by user group, "
+        "gender, or age group."
+    )
 
     df_stockouts = load_access_stockouts()
     df_responses = load_access_stockout_responses()

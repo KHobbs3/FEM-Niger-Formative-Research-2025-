@@ -80,7 +80,7 @@ selected = option_menu(
         "speaker-fill",
         "house-heart-fill",
         "file-earmark-person-fill",
-        "fa-syringe",
+        "capsule",
     ],
     menu_icon="cast",
     default_index=1,
