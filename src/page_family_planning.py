@@ -9,6 +9,8 @@ Changes vs original:
   • Minor UX: split radio uses consistent labels.
 """
 
+import textwrap
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -71,11 +73,26 @@ def _translate_label(label):
 
 # ── Chart helpers ─────────────────────────────────────────────────────────────
 
+def _wrap_labels(series, wrap_at=35):
+    """Wrap long index labels with <br> so Plotly can display them fully."""
+    wrapped = [
+        "<br>".join(textwrap.wrap(str(label), wrap_at)) if len(str(label)) > wrap_at else str(label)
+        for label in series.index
+    ]
+    return series.set_axis(wrapped)
+
 def _hbar(series, title, top_n=12, key=None):
     series = series.head(top_n)
     if series is None or series.empty:
         return
+    series = _wrap_labels(series, wrap_at=35)
     colors = (FEM_PALETTE * (len(series) // len(FEM_PALETTE) + 1))[:len(series)]
+    # Left margin: ~7px per character of the widest single wrapped line
+    max_line_chars = max(
+        (len(line) for label in series.index for line in str(label).split("<br>")),
+        default=10,
+    )
+    left_margin = min(max(max_line_chars * 7, 80), 300)
     fig = go.Figure(go.Bar(
         y=series.index.astype(str),
         x=series.values,
@@ -94,8 +111,8 @@ def _hbar(series, title, top_n=12, key=None):
         yaxis=dict(showgrid=False, autorange="reversed"),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=10, r=80, t=36, b=10),
-        height=max(180, len(series) * 36 + 60),
+        margin=dict(l=left_margin, r=80, t=36, b=10),
+        height=max(180, len(series) * 44 + 60),
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True, key=key)

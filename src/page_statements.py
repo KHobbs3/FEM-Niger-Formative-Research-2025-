@@ -3,8 +3,8 @@ page_statements.py  —  improved version
 Changes:
   • Higher-contrast colour scale.
   • Human-readable group column headers for "use" split.
-  • Second view shows actual respondent count (n) and weighted count — not %,
-    since the raw 'proportion' column may not be present in every pipeline run.
+  • Shows agree/disagree counts separately (not just total respondents).
+  • Weighted agreement is normalized: (sum of weighted responses) / (total weighted n)
   • Column detection: tries common count column names, reports clearly if absent.
 """
 
@@ -30,6 +30,7 @@ USE_GROUP_LABELS = {
     "past_user":   "Past user",
     "future_user": "Future user",
     "non_user":    "Non-user",
+    "nonuser":     "Non-user",
     "all":         "All",
 }
 
@@ -73,15 +74,18 @@ def _build_pivot(df_long, split_key, value_col="weighted_agreement"):
 
 
 def _heatmap_fig(pivot, title, value_label):
-    z = pivot.values * 100
+    z = pivot.values
+    
+    # Clamp values to [0, 1] for display
+    z_clamped = np.clip(z, 0, 1)
 
     text_matrix = [
-        [f"{v:.0f}%" if (v is not None and not np.isnan(float(v))) else "" for v in row]
+        [f"{v:.0%}" if (v is not None and not np.isnan(float(v))) else "" for v in row]
         for row in z
     ]
 
     fig = px.imshow(
-        z,
+        z_clamped * 100,
         labels=dict(x="Group", y="Statement", color=value_label),
         x=list(pivot.columns.astype(str)),
         y=list(pivot.index.astype(str)),
@@ -103,26 +107,19 @@ def _heatmap_fig(pivot, title, value_label):
 
 def _build_counts_table(df_long, split_key):
     """
-    Build a table of actual n and weighted n per statement per group.
-    Returns None if neither count column is found.
+    Build a table showing agree/disagree counts separately.
     """
-    n_col  = next((c for c in df_long.columns if c in ("n", "count", "n_respondents")), None)
-    wn_col = next((c for c in df_long.columns if c in ("weighted_n", "n_weighted", "wn")), None)
-
-    if n_col is None and wn_col is None:
+    required_cols = ["agree_n", "agree_weighted_n", "disagree_n", "disagree_weighted_n"]
+    if not all(c in df_long.columns for c in required_cols):
         return None
 
     if split_key == "none":
         sub = df_long[(df_long["split"] == "none") & (df_long["group"] == "all")].copy()
         result = {"Statement": sub["label"].tolist()}
-        if n_col:
-            result["n (respondents)"] = [
-                f"{int(v):,}" if pd.notna(v) else "" for v in sub[n_col]
-            ]
-        if wn_col:
-            result["Weighted n"] = [
-                f"{float(v):,.1f}" if pd.notna(v) else "" for v in sub[wn_col]
-            ]
+        result["Agree — n"] = [f"{int(v):,}" if pd.notna(v) else "" for v in sub["agree_n"]]
+        result["Agree — wtd n"] = [f"{float(v):,.1f}" if pd.notna(v) else "" for v in sub["agree_weighted_n"]]
+        result["Disagree — n"] = [f"{int(v):,}" if pd.notna(v) else "" for v in sub["disagree_n"]]
+        result["Disagree — wtd n"] = [f"{float(v):,.1f}" if pd.notna(v) else "" for v in sub["disagree_weighted_n"]]
         return pd.DataFrame(result)
 
     sub = df_long[df_long["split"] == split_key].copy()
@@ -135,12 +132,18 @@ def _build_counts_table(df_long, split_key):
         for grp in groups:
             grp_name = USE_GROUP_LABELS.get(str(grp), str(grp)) if split_key == "use" else str(grp)
             cell = sub[(sub["label"] == lbl) & (sub["group"] == grp)]
-            if n_col:
-                val = cell[n_col].iloc[0] if not cell.empty and pd.notna(cell[n_col].iloc[0]) else ""
-                row[f"{grp_name} — n"] = f"{int(val):,}" if val != "" else ""
-            if wn_col:
-                wval = cell[wn_col].iloc[0] if not cell.empty and pd.notna(cell[wn_col].iloc[0]) else ""
-                row[f"{grp_name} — wtd n"] = f"{float(wval):,.1f}" if wval != "" else ""
+            
+            if not cell.empty:
+                agree_n = cell["agree_n"].iloc[0]
+                agree_wn = cell["agree_weighted_n"].iloc[0]
+                disagree_n = cell["disagree_n"].iloc[0]
+                disagree_wn = cell["disagree_weighted_n"].iloc[0]
+                
+                row[f"{grp_name} — Agree n"] = f"{int(agree_n):,}" if pd.notna(agree_n) else ""
+                row[f"{grp_name} — Agree wtd"] = f"{float(agree_wn):,.1f}" if pd.notna(agree_wn) else ""
+                row[f"{grp_name} — Disagree n"] = f"{int(disagree_n):,}" if pd.notna(disagree_n) else ""
+                row[f"{grp_name} — Disagree wtd"] = f"{float(disagree_wn):,.1f}" if pd.notna(disagree_wn) else ""
+        
         rows.append(row)
 
     return pd.DataFrame(rows)
@@ -150,6 +153,21 @@ def _build_counts_table(df_long, split_key):
 
 def render():
     st.title("Statement Agreement")
+    
+    # Description at the top
+    st.markdown("""
+    ### Interpreting the heatmap and counts
+    
+    **Weighted Agreement Score (heatmap):**
+    - The weighted agreement score was calculated as: (sum of weighted "Agree" responses − sum of weighted "Disagree" responses) / (total weighted respondents)
+    - Range: −1.0 (all disagree) to +1.0 (all agree)
+    - Displayed as: (score + 1) / 2 × 100, converting to 0–100 % scale
+    - Darker colours indicate higher agreement; lighter colours indicate higher disagreement
+    
+    **Respondent Counts (table):**
+    - **n** = actual number of respondents who answered
+    - **Weighted n** = sum of survey weights (effective sample size, accounts for over/under-sampling)
+    """)
 
     split_by = st.radio("Split data by", list(SPLIT_MAP.keys()), horizontal=True)
     split_key = SPLIT_MAP[split_by]
@@ -168,31 +186,31 @@ def render():
     if split_key == "use":
         st.caption(
             "Columns show **user category**. "
-            "Weighted agreement score (0–100 %). Darker = higher agreement."
+            "Scale: 0–100 %. Darker = higher agreement. Lighter = higher disagreement."
         )
     else:
-        st.caption("Weighted agreement score (0–100 %). Darker = higher agreement.")
+        st.caption("Scale: 0–100 %. Darker = higher agreement. Lighter = higher disagreement.")
 
     st.plotly_chart(
-        _heatmap_fig(pivot_w, "Statement Agreement — weighted score", "Weighted agmt %"),
+        _heatmap_fig(pivot_w, "Statement Agreement — weighted score", "Agreement %"),
         use_container_width=True,
         key="heatmap_weighted",
     )
 
-    # ── Respondent counts ─────────────────────────────────────────────────────
-    with st.expander("View respondent counts (n and weighted n)"):
+    # ── Respondent counts ────────────────────────────────────────────────────
+    with st.expander("View respondent counts (Agree vs Disagree)"):
         counts_df = _build_counts_table(df_long, split_key)
         if counts_df is not None and not counts_df.empty:
             st.caption(
-                "**n** = actual number of respondents who answered each statement. "
-                "**Weighted n** = sum of survey weights (effective sample size)."
+                "**n** = actual number of respondents. "
+                "**Weighted n** = sum of survey weights (effective sample size). "
+                "Shown separately for Agree and Disagree responses."
             )
             st.dataframe(counts_df, use_container_width=True, hide_index=True)
         else:
             st.info(
-                "Count columns (n / weighted_n) were not found in the aggregated dataset. "
-                "Re-run the pipeline ensuring count columns are exported alongside "
-                "weighted_agreement."
+                "Count columns were not found in the aggregated dataset. "
+                "Re-run the pipeline ensuring count columns are exported."
             )
 
     # ── Raw agreement scores table ────────────────────────────────────────────

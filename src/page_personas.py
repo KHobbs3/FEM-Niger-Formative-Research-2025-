@@ -18,6 +18,42 @@ PROFILE_VARS = ["gender", "age_group", "use", "occupation", "religion", "life_go
 
 # ── Chart helpers ─────────────────────────────────────────────────────────────
 
+def _strip_hausa(text: str) -> str:
+    """Return only the English part of bilingual 'Hausa / English' labels.
+    
+    Handles both single labels and pipe-delimited multiple labels.
+    Example: "Ingantacciyar Lafiyar Mutum / Good/Better Personal Health|..."
+             → "Good/Better Personal Health|Always Having Enough Food For My Children"
+    """
+    if not text or pd.isna(text):
+        return str(text).strip()
+    
+    text = str(text)
+    
+    # Handle pipe-delimited multiple options
+    if "|" in text:
+        parts = text.split("|")
+        english_parts = [_strip_hausa(part) for part in parts]
+        return "|".join(english_parts)
+    
+    # Handle single bilingual label (Hausa / English)
+    if "/" in text:
+        # Split on first "/" to separate Hausa from the English part
+        split = text.split("/", 1)
+        if len(split) == 2:
+            english = split[1].strip()
+            return english if english else text.strip()
+
+    else:
+        # Split on first "/" to separate Hausa from the English part
+        split = text.split(" / ", 1)
+        if len(split) == 2:
+            english = split[1].strip()
+            return english if english else text.strip()
+    
+    return text.strip().replace("|", "; ")
+
+
 def _hbar(series, title, top_n=10, key=None):
     series = series.head(top_n)
     if series is None or series.empty:
@@ -56,14 +92,21 @@ def render_centroid_table(df_centroids):
     )
 
     display = df_centroids.copy()
-    display.index.name = "Persona"
 
+    # Clean up table
+    display.index.name = "Persona"
+    display.drop(columns=["persona"], inplace=True, errors="ignore")
+    display['life_goals'] = display['life_goals'].apply(_strip_hausa)
+    
     # Format count columns
-    for col in ["count", "weighted_count"]:
-        if col in display.columns:
+    for col in ["age", "count", "weighted_count"]:
+        if col in display.columns and display[col].dtype in [int, float]:
             display[col] = display[col].apply(
                 lambda v: f"{int(v):,}" if pd.notna(v) else ""
             )
+
+    # Format display columns
+    display.columns = [col.replace("_", " ").title() for col in display.columns]
 
     st.dataframe(display, use_container_width=True)
 

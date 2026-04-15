@@ -26,7 +26,7 @@ def _load(file_id, **kwargs):
 def load_drivers_barriers():
     # df = pd.read_csv(path, low_memory=False)
     # df.columns = df.columns.str.strip()
-    return _load("1_sKBFc3b32PjHatgIaBY-SSyKlSjCTTQ")
+    return _load("1xf4Gkm70WKMC0R_zN6SJZ9JSEqdZUMt9") #"1_sKBFc3b32PjHatgIaBY-SSyKlSjCTTQ") - november 2025 version
 
 
 def load_statement_labels(path="data/statement_labels.csv"):
@@ -75,10 +75,14 @@ def clean_column_name(col):
     return col
 
 # @st.cache_data
-def load_radio():
-    df = _load("1l2n9CJcenNTt7CUpf-krApXe9fDsi4r4")
-    df.columns = [clean_column_name(c) for c in df.columns]
-    df.set_index("Question", inplace=True)
+def load_radio_by_station():
+    df = _load("1MNO6t_yappsE5ZVp4l2jlZA7qvh1gs5i") #"1l2n9CJcenNTt7CUpf-krApXe9fDsi4r4") November 2025 version
+    df.set_index(df.columns[0], inplace=True)
+    return df
+
+def load_radio_by_state():
+    df = _load("1fMMjeFEEoM6EUgIPC4sNa5xcyi3lOakw")
+    df.set_index(df.columns[0], inplace=True)
     return df
 
 # ── Family planning page ──────────────────────────────────────────────────────

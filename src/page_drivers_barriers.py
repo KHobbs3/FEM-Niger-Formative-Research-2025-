@@ -47,27 +47,40 @@ def _overall_prevalence(row):
     return None
 
 
-def build_overview_chart(df, db_type, split_key="user_category"):
+def build_overview_chart(df, db_type, split_key="user_category", metric="prevalence"):
     """
     Consolidated grouped horizontal bar chart showing ALL drivers/barriers.
-
-    Each item gets one bar per subgroup (user category, gender, or age),
-    matching the example image.  Items are sorted highest → lowest priority,
-    then by the maximum prevalence across subgroups within each priority band.
-
-    The legend shows subgroup names only — no "trace 0" or priority entries.
+    metric: "prevalence" | "raw_n" | "weighted_n"
     """
-    # ── Collect per-subgroup prevalence for every row ──────────────────────
+    # ── Column maps ────────────────────────────────────────────────────────
     PREV_COL_MAP = {
         "user_category": "Prevalence (All)",
         "gender":        "GENDER: Prevalence (All)",
         "age":           "AGE_GROUP: Prevalence (All)",
     }
+    RAW_N_COL_MAP = {
+        "user_category": "N (All)",
+        "gender":        "GENDER: N (All)",
+        "age":           "AGE_GROUP: N (All)",
+    }
+    WGT_N_COL_MAP = {
+        "user_category": "Weighted N (All)",
+        "gender":        "GENDER: Weighted N (All)",
+        "age":           "AGE_GROUP: Weighted N (All)",
+    }
     prev_col = PREV_COL_MAP.get(split_key, "Prevalence (All)")
+    data_col = {
+        "prevalence": prev_col,
+        "raw_n":      RAW_N_COL_MAP.get(split_key, "N (All)"),
+        "weighted_n": WGT_N_COL_MAP.get(split_key, "Weighted N (All)"),
+    }.get(metric, prev_col)
 
     records = []
     for _, row in df.iterrows():
-        data = parse_subgroup_prevalence(row.get(prev_col, ""))
+        data = parse_subgroup_prevalence(row.get(data_col, ""))
+        if not data and metric != "prevalence":
+            # count column not yet in data — fall back to prevalence
+            data = parse_subgroup_prevalence(row.get(prev_col, ""))
         if not data:
             # fallback: try the user_category column
             data = parse_subgroup_prevalence(row.get("Prevalence (All)", ""))
@@ -115,13 +128,16 @@ def build_overview_chart(df, db_type, split_key="user_category"):
     priority_of = dict(zip(plot_df["name"], plot_df["priority"]))
 
     # ── One trace per subgroup ─────────────────────────────────────────────
+    is_counts = metric in ("raw_n", "weighted_n")
     traces = []
     for grp in all_groups:
         x_vals = [row_data.get(grp, None) for row_data in plot_df["data"]]
-        text_vals = [
-            f"{v:.1f}%" if v is not None else ""
-            for v in x_vals
-        ]
+        if is_counts:
+            text_vals = [f"{int(v):,}" if v is not None else "" for v in x_vals]
+            hover = "<b>%{y}</b><br>" + grp + ": %{x:,}<br>Priority: %{customdata}<extra></extra>"
+        else:
+            text_vals = [f"{v:.1f}%" if v is not None else "" for v in x_vals]
+            hover = "<b>%{y}</b><br>" + grp + ": %{x:.1f}%<br>Priority: %{customdata}<extra></extra>"
         traces.append(go.Bar(
             name=grp,
             y=item_names,
@@ -131,11 +147,7 @@ def build_overview_chart(df, db_type, split_key="user_category"):
             text=text_vals,
             textposition="outside",
             cliponaxis=False,
-            hovertemplate=(
-                "<b>%{y}</b><br>"
-                + grp + ": %{x:.1f}%<br>"
-                "Priority: %{customdata}<extra></extra>"
-            ),
+            hovertemplate=hover,
             customdata=[priority_of[n] for n in item_names],
         ))
 
@@ -174,7 +186,7 @@ def build_overview_chart(df, db_type, split_key="user_category"):
                 text=f"<b>{p}</b>",
                 showarrow=False,
                 xanchor="left",
-                font=dict(color=color, size=11),
+                font=dict(color=color, size=12),
             ))
 
     max_x = max(
@@ -182,118 +194,116 @@ def build_overview_chart(df, db_type, split_key="user_category"):
         default=10,
     )
 
+    metric_labels = {"prevalence": "prevalence", "raw_n": "raw n", "weighted_n": "weighted n"}
+    axis_titles   = {"prevalence": "% of respondents", "raw_n": "Respondents (n)", "weighted_n": "Weighted respondents"}
     fig.update_layout(
-        title=f"All {db_type}s — prevalence by {split_key.replace('_', ' ')}",
+        title=f"All {db_type}s — {metric_labels.get(metric, 'prevalence')} by {split_key.replace('_', ' ')}",
         barmode="group",
         xaxis=dict(
-            title="% of respondents",
+            title=axis_titles.get(metric, "% of respondents"),
             showgrid=False,
             range=[0, max_x * 1.4],
         ),
         yaxis=dict(showgrid=False, autorange="reversed"),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=280, r=180, t=48, b=10),
+        margin=dict(l=280, r=180, t=80, b=10),
         height=max(500, len(plot_df) * 52 + 100),
         legend=dict(
-            title=split_key.replace("_", " ").title(),
-            orientation="v",
-            x=1.02, y=1,
+            title=dict(text=split_key.replace("_", " ").title(), side="left"),
+            orientation="h",
+            x=0, y=1.06,
+            xanchor="left",
+            yanchor="bottom",
             bgcolor="rgba(0,0,0,0)",
         ),
         shapes=shapes,
         annotations=annotations,
         showlegend=True,
+        font=dict(size=14),
     )
     return fig
 
 
-def build_prevalence_bar(row, split="user_category", show_counts=False):
+def build_prevalence_bar(row, split="user_category", metric="prevalence"):
     """
-    Build prevalence bar chart for a single driver/barrier.
-    If show_counts=True, plot raw n and weighted n side-by-side instead of %.
+    Build a single bar chart for one driver/barrier.
+    metric: "prevalence" | "raw_n" | "weighted_n"
     """
-    COUNT_COL_MAP = {
-        "user_category": ("N (All)", "Weighted N (All)"),
-        "gender":        ("GENDER: N (All)", "GENDER: Weighted N (All)"),
-        "age":           ("AGE_GROUP: N (All)", "AGE_GROUP: Weighted N (All)"),
+    PREV_COL = {
+        "user_category": "Prevalence (All)",
+        "gender":        "GENDER: Prevalence (All)",
+        "age":           "AGE_GROUP: Prevalence (All)",
+    }
+    RAW_N_COL = {
+        "user_category": "N (All)",
+        "gender":        "GENDER: N (All)",
+        "age":           "AGE_GROUP: N (All)",
+    }
+    WGT_N_COL = {
+        "user_category": "Weighted N (All)",
+        "gender":        "GENDER: Weighted N (All)",
+        "age":           "AGE_GROUP: Weighted N (All)",
     }
 
-    if split == "user_category":
-        data = parse_subgroup_prevalence(row.get("Prevalence (All)", ""))
-        labels = [USER_CATEGORY_LABELS.get(k, k) for k in data.keys()]
-        n_col, wn_col = COUNT_COL_MAP["user_category"]
-    elif split == "gender":
-        data = parse_subgroup_prevalence(row.get("GENDER: Prevalence (All)", ""))
-        labels = list(data.keys())
-        n_col, wn_col = COUNT_COL_MAP["gender"]
-    elif split == "age":
-        data = parse_subgroup_prevalence(row.get("AGE_GROUP: Prevalence (All)", ""))
-        labels = list(data.keys())
-        n_col, wn_col = COUNT_COL_MAP["age"]
-    else:
-        data, labels = {}, []
-        n_col, wn_col = None, None
-
-    values = list(data.values())
-    if not values:
+    prev_col = PREV_COL.get(split)
+    if not prev_col:
         return None
 
-    if show_counts:
-        # Try to parse n and weighted_n from dedicated columns
-        n_data    = parse_subgroup_prevalence(row.get(n_col, "")) if n_col else {}
-        wn_data   = parse_subgroup_prevalence(row.get(wn_col, "")) if wn_col else {}
+    # Prevalence data is always needed for labels / fallback
+    prev_data = parse_subgroup_prevalence(row.get(prev_col, ""))
+    if not prev_data:
+        return None
 
-        # Fallback: derive n from prevalence × total if count columns absent
-        traces = []
-        if n_data:
-            n_labels = [USER_CATEGORY_LABELS.get(k, k) for k in n_data] if split == "user_category" else list(n_data.keys())
-            traces.append(go.Bar(
-                name="Raw n",
-                y=n_labels,
-                x=list(n_data.values()),
-                orientation="h",
-                marker_color=FEM_PALETTE[0],
-                text=[f"{int(v):,}" for v in n_data.values()],
-                textposition="outside",
-                cliponaxis=False,
-            ))
-        if wn_data:
-            wn_labels = [USER_CATEGORY_LABELS.get(k, k) for k in wn_data] if split == "user_category" else list(wn_data.keys())
-            traces.append(go.Bar(
-                name="Weighted n",
-                y=wn_labels,
-                x=list(wn_data.values()),
-                orientation="h",
-                marker_color=FEM_PALETTE[2],
-                text=[f"{v:,.1f}" for v in wn_data.values()],
-                textposition="outside",
-                cliponaxis=False,
-            ))
+    if split == "user_category":
+        labels = [USER_CATEGORY_LABELS.get(k, k) for k in prev_data]
+    else:
+        labels = list(prev_data.keys())
 
-        if not traces:
-            # columns not in data — show a note
-            return None
+    # ── Counts ────────────────────────────────────────────────────────────────
+    if metric in ("raw_n", "weighted_n"):
+        count_col = (RAW_N_COL if metric == "raw_n" else WGT_N_COL).get(split)
+        count_data = parse_subgroup_prevalence(row.get(count_col, "")) if count_col else {}
 
-        fig = go.Figure(traces)
-        max_x = max(
-            max(n_data.values(), default=0),
-            max(wn_data.values(), default=0),
-        )
+        if not count_data:
+            # column not in data yet — fall back to prevalence
+            return build_prevalence_bar(row, split, metric="prevalence")
+
+        if split == "user_category":
+            c_labels = [USER_CATEGORY_LABELS.get(k, k) for k in count_data]
+        else:
+            c_labels = list(count_data.keys())
+        c_values = list(count_data.values())
+
+        color     = FEM_PALETTE[0] if metric == "raw_n" else FEM_PALETTE[2]
+        text_vals = [f"{int(v):,}" for v in c_values] if metric == "raw_n" else [f"{v:,.1f}" for v in c_values]
+        x_title   = "Respondents (n)" if metric == "raw_n" else "Weighted respondents"
+
+        fig = go.Figure(go.Bar(
+            x=c_values,
+            y=c_labels,
+            orientation="h",
+            marker_color=color,
+            text=text_vals,
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="%{y}: %{x:,}<extra></extra>",
+        ))
         fig.update_layout(
-            barmode="group",
             margin=dict(l=0, r=80, t=4, b=4),
-            height=max(100, len(labels) * 52 + 40),
-            xaxis=dict(range=[0, max_x * 1.35], showgrid=False, title="Count"),
+            height=max(80, len(c_labels) * 36),
+            xaxis=dict(range=[0, max(c_values) * 1.35], showgrid=False,
+                       showticklabels=False, zeroline=False, title=x_title),
             yaxis=dict(showgrid=False),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            legend=dict(orientation="h", y=-0.2),
+            showlegend=False,
             font=dict(size=12),
         )
         return fig
 
-    # ── Default: prevalence % ─────────────────────────────────────────────────
+    # ── Prevalence % ──────────────────────────────────────────────────────────
+    values = list(prev_data.values())
     fig = go.Figure(go.Bar(
         x=values,
         y=labels,
@@ -369,7 +379,7 @@ def render(df_raw=None):
         df_raw = load_drivers_barriers()
 
     # ── Controls ──────────────────────────────────────────────────────────────
-    col1, col2, col3 = st.columns([1, 1, 2])
+    col1, col2, col3, col4 = st.columns([0.7, 1.0, 1.4, 0.8], gap="medium")
     with col1:
         db_type = st.radio("Show", ["Driver", "Barrier"], horizontal=True)
     with col2:
@@ -382,6 +392,17 @@ def render(df_raw=None):
             ["Very high", "High", "Medium", "Low"],
             default=["Very high", "High", "Medium", "Low"],
         )
+    with col4:
+        metric_choice = st.selectbox(
+            "Metric",
+            ["Prevalence (%)", "Raw n", "Weighted n"],
+            help=(
+                "Prevalence: % of respondents who mentioned this item. "
+                "Raw n: unweighted respondent count. "
+                "Weighted n: effective sample size after survey weights."
+            ),
+        )
+    metric = {"Prevalence (%)": "prevalence", "Raw n": "raw_n", "Weighted n": "weighted_n"}[metric_choice]
 
     split_key = {
         "User category": "user_category",
@@ -407,76 +428,53 @@ def render(df_raw=None):
         "Prevalence = % of respondents who mentioned this as a main driver/barrier."
     )
     st.plotly_chart(
-        build_overview_chart(df, db_type, split_key=split_key),
+        build_overview_chart(df, db_type, split_key=split_key, metric=metric),
         use_container_width=True,
         key="overview_chart",
     )
 
-    st.divider()
-    st.markdown(f"### Detail cards — {len(df)} main {db_type.lower()}(s) shown")
-
-    dcol1, dcol2 = st.columns([3, 1])
-    with dcol1:
+    # ── Detail cards (collapsible section) ───────────────────────────────────
+    with st.expander(f"Detail cards — {len(df)} main {db_type.lower()}(s)", expanded=False):
         st.caption("Sorted by priority, then by prevalence. Click any item to expand.")
-    with dcol2:
-        show_counts = st.toggle(
-            "Show counts (n)",
-            value=False,
-            help=(
-                "Switch between % prevalence and actual respondent counts. "
-                "Raw n = number of survey responses. "
-                "Weighted n = effective sample size after applying survey weights. "
-                "Large gaps between the two indicate unequal weighting."
-            ),
-        )
 
-    # ── Detail cards as expanders ─────────────────────────────────────────────
-    for card_idx, (_, row) in enumerate(df.iterrows()):
-        name_raw = str(row["Name"])
-        name     = _strip_hausa(name_raw)
-        priority = str(row["Priority"]).strip()
+        for card_idx, (_, row) in enumerate(df.iterrows()):
+            name_raw = str(row["Name"])
+            name     = _strip_hausa(name_raw)
+            priority = str(row["Priority"]).strip()
 
-        # Respondent count (if column present)
-        n_label = ""
-        for n_col in ["N", "n", "n_respondents", "Respondents"]:
-            if n_col in row.index and pd.notna(row[n_col]):
-                try:
-                    n_label = f"  ·  n = {int(row[n_col]):,}"
-                except (ValueError, TypeError):
-                    pass
-                break
+            badge_color    = PRIORITY_COLORS.get(priority, "#6b7280")
+            expander_label = f"**{name}**  —  {priority}"
 
-        badge_color = PRIORITY_COLORS.get(priority, "#6b7280")
-        expander_label = f"**{name}**  —  {priority}{n_label}"
-
-        with st.expander(expander_label, expanded=False):
-            st.markdown(
-                f'<span style="background:{badge_color};color:white;padding:2px 10px;'
-                f'border-radius:12px;font-size:12px;font-weight:600;">'
-                f'{priority} priority — main {db_type.lower()}</span>',
-                unsafe_allow_html=True,
-            )
-            st.markdown("")
-
-            fig_prev = build_prevalence_bar(row, split_key, show_counts=show_counts)
-            if fig_prev:
-                label = ("*Respondent counts (raw n vs weighted n)*"
-                         if show_counts else
-                         "*Prevalence — % of respondents who mentioned this*")
-                st.markdown(label)
-                st.plotly_chart(
-                    fig_prev, use_container_width=True,
-                    key=f"prev_{card_idx}",
+            with st.expander(expander_label, expanded=False):
+                st.markdown(
+                    f'<span style="background:{badge_color};color:white;padding:2px 10px;'
+                    f'border-radius:12px;font-size:12px;font-weight:600;">'
+                    f'{priority} priority — main {db_type.lower()}</span>',
+                    unsafe_allow_html=True,
                 )
+                st.markdown("")
 
-            stmt, fig_stmt = build_statement_chart(row, split_key)
-            if fig_stmt:
-                stmt_text = stmt if stmt else "Related belief statement"
-                st.markdown(f"*Agreement with: \"{stmt_text}\"*")
-                st.plotly_chart(
-                    fig_stmt, use_container_width=True,
-                    key=f"stmt_{card_idx}",
-                )
+                fig_prev = build_prevalence_bar(row, split_key, metric=metric)
+                if fig_prev:
+                    card_label = {
+                        "prevalence": "*Prevalence — % of respondents who mentioned this*",
+                        "raw_n":      "*Respondent counts (unweighted n)*",
+                        "weighted_n": "*Weighted respondent counts*",
+                    }.get(metric, "")
+                    st.markdown(card_label)
+                    st.plotly_chart(
+                        fig_prev, use_container_width=True,
+                        key=f"prev_{card_idx}",
+                    )
 
-            if not fig_prev and not fig_stmt:
-                st.info("No chart data available for this item.")
+                stmt, fig_stmt = build_statement_chart(row, split_key)
+                if fig_stmt:
+                    stmt_text = stmt if stmt else "Related belief statement"
+                    st.markdown(f"*Agreement with: \"{stmt_text}\"*")
+                    st.plotly_chart(
+                        fig_stmt, use_container_width=True,
+                        key=f"stmt_{card_idx}",
+                    )
+
+                if not fig_prev and not fig_stmt:
+                    st.info("No chart data available for this item.")
