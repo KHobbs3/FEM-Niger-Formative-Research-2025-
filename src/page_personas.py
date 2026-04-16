@@ -200,9 +200,11 @@ def render_comparison(df_profile, n_personas):
 
 def render():
     st.header("Personas")
-    st.caption("Cluster-based respondent profiles derived from survey data.")
-    with st.expander("Methods", expanded=False):
-        st.markdown("""
+    st.caption("""We develop cluster-based respondent profiles (ie. archetypes) based on the profiles of formative research participants. 
+    This approach is used in user-centred design and marketing to create representative "customer personas" that help teams empathise with their target audience and make informed design decisions.
+    """)
+    st.markdown("""
+### Methodology
 Personas were derived using **k-modes clustering**, a variant of k-means adapted for
 categorical data. Unlike k-means, k-modes uses modes (most frequent values) rather than
 means as cluster centres, and measures dissimilarity by the number of mismatching

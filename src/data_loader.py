@@ -144,7 +144,6 @@ def load_personality_wellbeing():
 
 
 # ── Respondent profile page ───────────────────────────────────────────────────
-
 def load_respondents_profile():
     return _load("1Wiq13fTLzZS1aGRjU_5PwWcpjNnaQ-MU")
 
