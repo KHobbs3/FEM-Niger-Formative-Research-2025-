@@ -201,6 +201,25 @@ def render_comparison(df_profile, n_personas):
 def render():
     st.header("Personas")
     st.caption("Cluster-based respondent profiles derived from survey data.")
+    with st.expander("Methods", expanded=False):
+        st.markdown("""
+Personas were derived using **k-modes clustering**, a variant of k-means adapted for
+categorical data. Unlike k-means, k-modes uses modes (most frequent values) rather than
+means as cluster centres, and measures dissimilarity by the number of mismatching
+categories between observations — making it well-suited to survey responses.
+
+**Clustering variables:** age, gender, occupation, religion, and life goals.
+
+**Configuration:** 3 clusters, initialised using the Cao method (which selects starting
+centroids based on category frequency distributions to reduce sensitivity to random
+starting points), with 5 independent runs to improve stability. Results are fully
+reproducible (fixed random seed).
+
+**Output:** Each persona represents the modal respondent within a cluster — the
+combination of attribute values that best characterises that group. Cluster size (N and
+weighted N) is shown for each persona. Individual-level data is not stored or displayed.
+        """)
+    st.markdown("")
 
     df_centroids = load_personas_centroids()
     df_profile   = load_personas_profile()
