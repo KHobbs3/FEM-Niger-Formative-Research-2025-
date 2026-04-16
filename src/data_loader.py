@@ -143,6 +143,12 @@ def load_personality_wellbeing():
     return _load("1qnlGPl5N2D0syOBQjSvGe9HAldGi-WfB")
 
 
+# ── Respondent profile page ───────────────────────────────────────────────────
+
+def load_respondents_profile():
+    return _load("1Wiq13fTLzZS1aGRjU_5PwWcpjNnaQ-MU")
+
+
 # ── Personas page ─────────────────────────────────────────────────────────────
 
 # @st.cache_data

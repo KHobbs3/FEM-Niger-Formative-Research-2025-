@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 
+from src.page_respondents import render as render_respondents
 from src.page_drivers_barriers import render as render_drivers_barriers
 from src.page_radio import render as render_radio
 from src.page_personas import render as render_personas
@@ -65,6 +66,7 @@ st.markdown(
 selected = option_menu(
     menu_title=None,
     options=[
+        "Respondents",
         "Personas",
         "Drivers & Barriers",
         "Agreement & Characteristics",
@@ -74,6 +76,7 @@ selected = option_menu(
         "Access & Supply",
     ],
     icons=[
+        "bar-chart-fill",
         "people-fill",
         "speedometer2",
         "card-checklist",
@@ -96,7 +99,10 @@ selected = option_menu(
 st.markdown("")  # breathing room
 
 # ── Route to pages ────────────────────────────────────────────────────────────
-if selected == "Personas":
+if selected == "Respondents":
+    render_respondents()
+
+elif selected == "Personas":
     render_personas()
 
 elif selected == "Drivers & Barriers":
