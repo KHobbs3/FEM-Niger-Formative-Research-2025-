@@ -15,7 +15,7 @@ VAR_ORDER = [
     ("age_group",       "Age group"),
     ("occupation",      "Occupation"),
     ("religion",        "Religion"),
-    ("settlement_type", "Settlement type"),
+    ("urban_rural", "Settlement type"),
 ]
 
 # Preferred category order within variables (others appended alphabetically)
