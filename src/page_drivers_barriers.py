@@ -374,6 +374,30 @@ def build_statement_chart(row, split="user_category"):
 
 def render(df_raw=None):
     st.header("Drivers & Barriers")
+    st.caption(
+        "Drivers are factors that motivate or facilitate contraceptive use. "
+        "Barriers are factors that prevent or discourage it. "
+        "Each item is coded from qualitative responses and assigned a priority level "
+        "based on how frequently it was mentioned and its assessed importance."
+    )
+    st.markdown("""
+### Methodology
+Drivers and barriers were identified through **thematic analysis** of open-ended survey
+responses. Each item was coded by trained analysts and reviewed for consistency. Prevalence
+reflects the share of respondents who mentioned a given driver or barrier as one of their
+main reasons for using or not using contraception.
+
+**Priority levels** reflect a combination of prevalence and strategic importance:
+- **Very high** — mentioned by a large share of respondents and/or considered a critical lever for behaviour change
+- **High** — frequently mentioned and actionable
+- **Medium** — moderately prevalent; worth addressing in programme design
+- **Low** — less common; may be relevant for specific sub-groups
+
+**Subgroup breakdowns** (user category, gender, age group) show the prevalence of each
+item within that subgroup. Weighted prevalence uses post-stratification survey weights to
+account for differences in sampling across regions and demographics.
+    """)
+    st.markdown("")
 
     if df_raw is None:
         df_raw = load_drivers_barriers()

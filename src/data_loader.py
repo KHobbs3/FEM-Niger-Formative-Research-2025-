@@ -29,7 +29,7 @@ def load_drivers_barriers():
     return _load("1xf4Gkm70WKMC0R_zN6SJZ9JSEqdZUMt9") #"1_sKBFc3b32PjHatgIaBY-SSyKlSjCTTQ") - november 2025 version
 
 
-def load_statement_labels(path="data/statement_labels.csv"):
+def load_statement_labels():
     # df = pd.read_csv(path, encoding="ISO-8859-1", low_memory=False)
     # df.columns = df.columns.str.strip()
     # df.dropna(axis=0, how="all", inplace=True)
@@ -157,6 +157,16 @@ def load_personas_centroids():
 # @st.cache_data
 def load_personas_profile():
     return _load("1gbbOIVYiPTV0TKRg2n568I7hlwvcleK4")
+
+
+def load_personas_centroids_by_gender():
+    return _load("1q-NolDxH-kw9goSdKPVknYbqrvWYqe7-")
+
+def load_personas_profile_by_gender():
+    return _load("1qqCIVe1YscIRmljahbCLW06Ta9RO_xz8")
+
+def load_personas_elbow():
+    return _load("1qX7CZJpt7S7G9sYYd2bXOREVFgosdWc6")
 
 
 # ── Shared parsing helpers (used by drivers/barriers) ─────────────────────────

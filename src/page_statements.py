@@ -12,6 +12,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 from src.data_loader import load_statements_heatmap
 from src.fem_colours import FEM_ORANGE, FEM_BROWN
 
@@ -84,23 +85,26 @@ def _heatmap_fig(pivot, title, value_label):
         for row in z
     ]
 
-    fig = px.imshow(
-        z_clamped * 100,
-        labels=dict(x="Group", y="Statement", color=value_label),
+    fig = go.Figure(go.Heatmap(
+        z=z_clamped * 100,
         x=list(pivot.columns.astype(str)),
         y=list(pivot.index.astype(str)),
-        color_continuous_scale=FEM_SCALE_HC,
+        colorscale=FEM_SCALE_HC,
         zmin=0, zmax=100,
-        text_auto=False,
-    )
-    fig.update_traces(text=text_matrix, texttemplate="%{text}")
+        text=text_matrix,
+        texttemplate="%{text}",
+        showscale=True,
+        colorbar=dict(title=value_label, ticksuffix="%", thickness=12, len=0.8),
+    ))
     fig.update_layout(
         title=title,
         height=max(500, len(pivot) * 28 + 120),
-        coloraxis_colorbar=dict(title=value_label, ticksuffix="%", thickness=14),
         xaxis=dict(side="top", tickfont=dict(size=12)),
-        yaxis=dict(tickfont=dict(size=11)),
-        margin=dict(l=10, r=20, t=80, b=10),
+        yaxis=dict(tickfont=dict(size=11), automargin=True, autorange="reversed"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(size=11),
+        margin=dict(l=10, r=10, t=80, b=10),
     )
     return fig
 
