@@ -26,7 +26,8 @@ def _load(file_id, **kwargs):
 def load_drivers_barriers():
     # df = pd.read_csv(path, low_memory=False)
     # df.columns = df.columns.str.strip()
-    return _load("1xf4Gkm70WKMC0R_zN6SJZ9JSEqdZUMt9") #"1_sKBFc3b32PjHatgIaBY-SSyKlSjCTTQ") - november 2025 version
+    return _load("1yr-zA6R7hNEexDGZj06KrO0m0Hb-hOYy") #"1_sKBFc3b32PjHatgIaBY-SSyKlSjCTTQ") - november 2025 version (4 user cats)
+                                                     # "1xf4Gkm70WKMC0R_zN6SJZ9JSEqdZUMt9") - december 2025 version (4 user cats)
 
 
 def load_statement_labels():
@@ -205,7 +206,7 @@ def get_priority_sort_key(p):
 
 USER_CATEGORY_LABELS = {
     "user":        "Current user",
-    "non_user":    "Non-user",
+    "nonuser":    "Non-user",
     "future_user": "Future user",
     "past_user":   "Past user",
 }
