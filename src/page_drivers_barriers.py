@@ -68,11 +68,17 @@ def build_overview_chart(df, db_type, split_key="user_category", metric="prevale
         "gender":        "GENDER: Weighted N (All)",
         "age":           "AGE_GROUP: Weighted N (All)",
     }
+    UNWGT_PREV_COL_MAP = {
+        "user_category": "Unweighted Prevalence (All)",
+        "gender":        "GENDER: Unweighted Prevalence (All)",
+        "age":           "AGE_GROUP: Unweighted Prevalence (All)",
+    }
     prev_col = PREV_COL_MAP.get(split_key, "Prevalence (All)")
     data_col = {
-        "prevalence": prev_col,
-        "raw_n":      RAW_N_COL_MAP.get(split_key, "N (All)"),
-        "weighted_n": WGT_N_COL_MAP.get(split_key, "Weighted N (All)"),
+        "prevalence":            prev_col,
+        "raw_n":                 RAW_N_COL_MAP.get(split_key, "N (All)"),
+        "weighted_n":            WGT_N_COL_MAP.get(split_key, "Weighted N (All)"),
+        "unweighted_prevalence": UNWGT_PREV_COL_MAP.get(split_key, "Unweighted Prevalence (All)"),
     }.get(metric, prev_col)
 
     records = []
@@ -129,13 +135,14 @@ def build_overview_chart(df, db_type, split_key="user_category", metric="prevale
 
     # ── One trace per subgroup ─────────────────────────────────────────────
     is_counts = metric in ("raw_n", "weighted_n")
+    is_pct    = metric in ("prevalence", "unweighted_prevalence")
     traces = []
     for grp in all_groups:
         x_vals = [row_data.get(grp, None) for row_data in plot_df["data"]]
         if is_counts:
             text_vals = [f"{int(v):,}" if v is not None else "" for v in x_vals]
             hover = "<b>%{y}</b><br>" + grp + ": %{x:,}<br>Priority: %{customdata}<extra></extra>"
-        else:
+        else:  # prevalence or unweighted_prevalence
             text_vals = [f"{v:.1f}%" if v is not None else "" for v in x_vals]
             hover = "<b>%{y}</b><br>" + grp + ": %{x:.1f}%<br>Priority: %{customdata}<extra></extra>"
         traces.append(go.Bar(
@@ -194,8 +201,8 @@ def build_overview_chart(df, db_type, split_key="user_category", metric="prevale
         default=10,
     )
 
-    metric_labels = {"prevalence": "prevalence", "raw_n": "raw n", "weighted_n": "weighted n"}
-    axis_titles   = {"prevalence": "% of respondents", "raw_n": "Respondents (n)", "weighted_n": "Weighted respondents"}
+    metric_labels = {"prevalence": "prevalence", "raw_n": "raw n", "weighted_n": "weighted n", "unweighted_prevalence": "unweighted prevalence"}
+    axis_titles   = {"prevalence": "% of respondents", "raw_n": "Respondents (n)", "weighted_n": "Weighted respondents", "unweighted_prevalence": "% of respondents (unweighted)"}
     fig.update_layout(
         title=f"All {db_type}s — {metric_labels.get(metric, 'prevalence')} by {split_key.replace('_', ' ')}",
         barmode="group",
@@ -245,6 +252,11 @@ def build_prevalence_bar(row, split="user_category", metric="prevalence"):
         "gender":        "GENDER: Weighted N (All)",
         "age":           "AGE_GROUP: Weighted N (All)",
     }
+    UNWGT_PREV_COL = {
+        "user_category": "Unweighted Prevalence (All)",
+        "gender":        "GENDER: Unweighted Prevalence (All)",
+        "age":           "AGE_GROUP: Unweighted Prevalence (All)",
+    }
 
     prev_col = PREV_COL.get(split)
     if not prev_col:
@@ -259,6 +271,45 @@ def build_prevalence_bar(row, split="user_category", metric="prevalence"):
         labels = [USER_CATEGORY_LABELS.get(k, k) for k in prev_data]
     else:
         labels = list(prev_data.keys())
+
+    # ── Unweighted prevalence % ───────────────────────────────────────────────
+    if metric == "unweighted_prevalence":
+        unwgt_col  = UNWGT_PREV_COL.get(split)
+        unwgt_data = parse_subgroup_prevalence(row.get(unwgt_col, "")) if unwgt_col else {}
+        if not unwgt_data:
+            return build_prevalence_bar(row, split, metric="prevalence")
+        if split == "user_category":
+            u_labels = [USER_CATEGORY_LABELS.get(k, k) for k in unwgt_data]
+        else:
+            u_labels = list(unwgt_data.keys())
+        u_values = list(unwgt_data.values())
+        fig = go.Figure(go.Bar(
+            x=u_values,
+            y=u_labels,
+            orientation="h",
+            marker_color=FEM_PALETTE[:len(u_labels)],
+            text=[f"{v:.1f}%" for v in u_values],
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
+        ))
+        fig.update_layout(
+            margin=dict(l=0, r=60, t=4, b=4),
+            height=max(80, len(u_labels) * 36),
+            xaxis=dict(
+                range=[0, max(u_values) * 1.35],
+                showticklabels=False,
+                showgrid=False,
+                zeroline=False,
+                title="% of respondents (unweighted)",
+            ),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            showlegend=False,
+            font=dict(size=12),
+        )
+        return fig
 
     # ── Counts ────────────────────────────────────────────────────────────────
     if metric in ("raw_n", "weighted_n"):
@@ -419,14 +470,20 @@ account for differences in sampling across regions and demographics.
     with col4:
         metric_choice = st.selectbox(
             "Metric",
-            ["Prevalence (%)", "Raw n", "Weighted n"],
+            ["Prevalence (%)", "Unweighted prevalence (%)", "Raw n", "Weighted n"],
             help=(
-                "Prevalence: % of respondents who mentioned this item. "
+                "Prevalence: weighted % of respondents who mentioned this item. "
+                "Unweighted prevalence: same but without survey weights applied. "
                 "Raw n: unweighted respondent count. "
                 "Weighted n: effective sample size after survey weights."
             ),
         )
-    metric = {"Prevalence (%)": "prevalence", "Raw n": "raw_n", "Weighted n": "weighted_n"}[metric_choice]
+    metric = {
+        "Prevalence (%)":            "prevalence",
+        "Unweighted prevalence (%)": "unweighted_prevalence",
+        "Raw n":                     "raw_n",
+        "Weighted n":                "weighted_n",
+    }[metric_choice]
 
     split_key = {
         "User category": "user_category",
@@ -481,9 +538,10 @@ account for differences in sampling across regions and demographics.
                 fig_prev = build_prevalence_bar(row, split_key, metric=metric)
                 if fig_prev:
                     card_label = {
-                        "prevalence": "*Prevalence — % of respondents who mentioned this*",
-                        "raw_n":      "*Respondent counts (unweighted n)*",
-                        "weighted_n": "*Weighted respondent counts*",
+                        "prevalence":            "*Prevalence — % of respondents who mentioned this (weighted)*",
+                        "unweighted_prevalence": "*Unweighted prevalence — % of respondents who mentioned this*",
+                        "raw_n":                 "*Respondent counts (unweighted n)*",
+                        "weighted_n":            "*Weighted respondent counts*",
                     }.get(metric, "")
                     st.markdown(card_label)
                     st.plotly_chart(

@@ -27,12 +27,9 @@ FEM_SCALE_HC = [
 ]
 
 USE_GROUP_LABELS = {
-    "user":        "Current user",
-    "past_user":   "Past user",
-    "future_user": "Future user",
-    "non_user":    "Non-user",
-    "nonuser":     "Non-user",
-    "all":         "All",
+    "user":    "Current user",
+    "nonuser": "Non-user",
+    "all":     "All",
 }
 
 SPLIT_MAP = {
@@ -109,20 +106,30 @@ def _heatmap_fig(pivot, title, value_label):
     return fig
 
 
+def _fmt_pct(v):
+    return f"{float(v):.0%}" if pd.notna(v) else ""
+
+
 def _build_counts_table(df_long, split_key):
     """
-    Build a table showing agree/disagree counts separately.
+    Build a table showing agree/disagree counts and unweighted percentages.
     """
     required_cols = ["agree_n", "agree_weighted_n", "disagree_n", "disagree_weighted_n"]
     if not all(c in df_long.columns for c in required_cols):
         return None
 
+    has_pct = "agree_pct" in df_long.columns and "disagree_pct" in df_long.columns
+
     if split_key == "none":
         sub = df_long[(df_long["split"] == "none") & (df_long["group"] == "all")].copy()
         result = {"Statement": sub["label"].tolist()}
         result["Agree — n"] = [f"{int(v):,}" if pd.notna(v) else "" for v in sub["agree_n"]]
+        if has_pct:
+            result["Agree — %"] = [_fmt_pct(v) for v in sub["agree_pct"]]
         result["Agree — wtd n"] = [f"{float(v):,.1f}" if pd.notna(v) else "" for v in sub["agree_weighted_n"]]
         result["Disagree — n"] = [f"{int(v):,}" if pd.notna(v) else "" for v in sub["disagree_n"]]
+        if has_pct:
+            result["Disagree — %"] = [_fmt_pct(v) for v in sub["disagree_pct"]]
         result["Disagree — wtd n"] = [f"{float(v):,.1f}" if pd.notna(v) else "" for v in sub["disagree_weighted_n"]]
         return pd.DataFrame(result)
 
@@ -136,18 +143,22 @@ def _build_counts_table(df_long, split_key):
         for grp in groups:
             grp_name = USE_GROUP_LABELS.get(str(grp), str(grp)) if split_key == "use" else str(grp)
             cell = sub[(sub["label"] == lbl) & (sub["group"] == grp)]
-            
+
             if not cell.empty:
                 agree_n = cell["agree_n"].iloc[0]
                 agree_wn = cell["agree_weighted_n"].iloc[0]
                 disagree_n = cell["disagree_n"].iloc[0]
                 disagree_wn = cell["disagree_weighted_n"].iloc[0]
-                
+
                 row[f"{grp_name} — Agree n"] = f"{int(agree_n):,}" if pd.notna(agree_n) else ""
+                if has_pct:
+                    row[f"{grp_name} — Agree %"] = _fmt_pct(cell["agree_pct"].iloc[0])
                 row[f"{grp_name} — Agree wtd"] = f"{float(agree_wn):,.1f}" if pd.notna(agree_wn) else ""
                 row[f"{grp_name} — Disagree n"] = f"{int(disagree_n):,}" if pd.notna(disagree_n) else ""
+                if has_pct:
+                    row[f"{grp_name} — Disagree %"] = _fmt_pct(cell["disagree_pct"].iloc[0])
                 row[f"{grp_name} — Disagree wtd"] = f"{float(disagree_wn):,.1f}" if pd.notna(disagree_wn) else ""
-        
+
         rows.append(row)
 
     return pd.DataFrame(rows)
@@ -168,12 +179,24 @@ def render():
     - Displayed as: (score + 1) / 2 × 100, converting to 0–100 % scale
     - Darker colours indicate higher agreement; lighter colours indicate higher disagreement
     
+    **Unweighted % (heatmap & table):**
+    - Agree % = number who agreed ÷ total respondents who answered (no weighting applied)
+    - Useful for checking how the raw sample looks before adjusting for survey weights
+
     **Respondent Counts (table):**
     - **n** = actual number of respondents who answered
+    - **%** = unweighted percentage (agree n ÷ total n)
     - **Weighted n** = sum of survey weights (effective sample size, accounts for over/under-sampling)
     """)
 
-    split_by = st.radio("Split data by", list(SPLIT_MAP.keys()), horizontal=True)
+    col_split, col_view = st.columns([2, 2])
+    with col_split:
+        split_by = st.radio("Split data by", list(SPLIT_MAP.keys()), horizontal=True)
+    with col_view:
+        view = st.selectbox(
+            "View",
+            ["Weighted agreement score", "Unweighted agree %"],
+        )
     split_key = SPLIT_MAP[split_by]
 
     df_long = load_statements_heatmap()
@@ -181,24 +204,22 @@ def render():
         st.warning(_MISSING)
         return
 
-    # ── Weighted agreement heatmap ────────────────────────────────────────────
-    pivot_w = _build_pivot(df_long, split_key, value_col="weighted_agreement")
-    if pivot_w.empty:
+    # ── Heatmap (selected view) ───────────────────────────────────────────────
+    if view == "Weighted agreement score":
+        value_col, title, label = "weighted_agreement", "Statement Agreement — weighted score", "Agreement %"
+    else:
+        value_col, title, label = "agree_pct", "Statement Agreement — unweighted agree %", "Agree %"
+
+    pivot = _build_pivot(df_long, split_key, value_col=value_col)
+    if pivot.empty:
         st.info("No data for this split.")
         return
 
-    if split_key == "use":
-        st.caption(
-            "Columns show **user category**. "
-            "Scale: 0–100 %. Darker = higher agreement. Lighter = higher disagreement."
-        )
-    else:
-        st.caption("Scale: 0–100 %. Darker = higher agreement. Lighter = higher disagreement.")
-
+    st.caption("Scale: 0–100 %. Darker = higher agreement. Lighter = higher disagreement.")
     st.plotly_chart(
-        _heatmap_fig(pivot_w, "Statement Agreement — weighted score", "Agreement %"),
+        _heatmap_fig(pivot, title, label),
         use_container_width=True,
-        key="heatmap_weighted",
+        key="heatmap_main",
     )
 
     # ── Respondent counts ────────────────────────────────────────────────────
@@ -207,6 +228,7 @@ def render():
         if counts_df is not None and not counts_df.empty:
             st.caption(
                 "**n** = actual number of respondents. "
+                "**%** = unweighted percentage (agree n ÷ total n). "
                 "**Weighted n** = sum of survey weights (effective sample size). "
                 "Shown separately for Agree and Disagree responses."
             )
@@ -217,6 +239,6 @@ def render():
                 "Re-run the pipeline ensuring count columns are exported."
             )
 
-    # ── Raw agreement scores table ────────────────────────────────────────────
-    with st.expander("View weighted agreement scores (table)"):
-        st.dataframe(pivot_w.style.format("{:.1%}"), use_container_width=True)
+    # ── Raw scores table ──────────────────────────────────────────────────────
+    with st.expander("View scores (table)"):
+        st.dataframe(pivot.style.format("{:.1%}"), use_container_width=True)
