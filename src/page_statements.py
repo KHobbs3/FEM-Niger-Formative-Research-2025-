@@ -240,5 +240,5 @@ def render():
             )
 
     # ── Raw scores table ──────────────────────────────────────────────────────
-    with st.expander("View scores (table)"):
-        st.dataframe(pivot.style.format("{:.1%}"), use_container_width=True)
+    # with st.expander("View scores (table)"):
+    #     st.dataframe(pivot.style.format("{:.1%}"), use_container_width=True)
