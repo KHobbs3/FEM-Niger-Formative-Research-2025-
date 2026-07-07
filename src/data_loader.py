@@ -149,6 +149,30 @@ def load_respondents_profile():
     return _load("1Wiq13fTLzZS1aGRjU_5PwWcpjNnaQ-MU")
 
 
+# ── Phone Pulse pages (local CSVs — no PII) ───────────────────────────────────
+
+PP_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+
+def _load_pp(filename: str, **kwargs) -> pd.DataFrame:
+    path = os.path.join(PP_DATA_DIR, filename)
+    return pd.read_csv(path, **kwargs)
+
+def load_pp_respondents_profile():   return _load_pp("pp_respondents_profile.csv")
+def load_pp_fp_awareness():          return _load_pp("pp_fp_awareness.csv")
+def load_pp_fp_method_used():        return _load_pp("pp_fp_method_used.csv")
+def load_pp_fp_whynot():             return _load_pp("pp_fp_whynot.csv")
+def load_pp_fp_preg_chance():        return _load_pp("pp_fp_preg_chance.csv")
+def load_pp_attitudes():             return _load_pp("pp_attitudes.csv")
+def load_pp_radio_any():             return _load_pp("pp_radio_any.csv")
+def load_pp_radio_hours():           return _load_pp("pp_radio_hours.csv")
+def load_pp_radio_days():            return _load_pp("pp_radio_days.csv")
+def load_pp_radio_uptake():          return _load_pp("pp_radio_uptake.csv")
+def load_pp_radio_stations():        return _load_pp("pp_radio_stations.csv")
+def load_pp_partner_decision():      return _load_pp("pp_partner_decision.csv")
+def load_pp_partner_norms():         return _load_pp("pp_partner_norms.csv")
+def load_pp_partner_discuss():       return _load_pp("pp_partner_discuss.csv")
+
+
 # ── Personas page ─────────────────────────────────────────────────────────────
 
 # @st.cache_data

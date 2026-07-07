@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 
+# Formative research pages
 from src.page_respondents import render as render_respondents
 from src.page_drivers_barriers import render as render_drivers_barriers
 from src.page_radio import render as render_radio
@@ -9,6 +10,13 @@ from src.page_statements import render as render_agreement_characteristics
 from src.page_access import render as render_access
 from src.page_family_planning import render as render_family_planning
 from src.page_personality_traits import render as render_personality_traits
+
+# Phone Pulse pages
+from src.page_pp_respondents import render as render_pp_respondents
+from src.page_pp_family_planning import render as render_pp_family_planning
+from src.page_pp_attitudes import render as render_pp_attitudes
+from src.page_pp_radio import render as render_pp_radio
+from src.page_pp_partner_norms import render as render_pp_partner_norms
 
 # from src.page_stubs import (
     # render_personas,
@@ -62,63 +70,122 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── Navigation ────────────────────────────────────────────────────────────────
-selected = option_menu(
+# ── Top-level survey switcher ─────────────────────────────────────────────────
+survey = option_menu(
     menu_title=None,
-    options=[
-        "Respondents",
-        "Personas",
-        "Drivers & Barriers",
-        "Agreement & Characteristics",
-        "Radio",
-        "Family Planning",
-        "Personality Traits",
-        "Access & Supply",
-    ],
-    icons=[
-        "bar-chart-fill",
-        "people-fill",
-        "speedometer2",
-        "card-checklist",
-        "speaker-fill",
-        "house-heart-fill",
-        "file-earmark-person-fill",
-        "capsule",
-    ],
+    options=["Formative Research", "Phone Pulse"],
+    icons=["journal-text", "telephone-fill"],
     menu_icon="cast",
-    default_index=1,
+    default_index=0,
     orientation="horizontal",
     styles={
-        "container": {"background-color": FEM_TAUPE, "padding": "0", "margin": "0"},
-        "icon":      {"color": FEM_ORANGE, "font-size": "14px"},
-        "nav-link":  {"padding": "4px 10px", "--hover-color": FEM_STEEL},
-        "nav-link-selected": {"background-color": FEM_NAVY},
+        "container": {"background-color": FEM_BROWN, "padding": "0 4px", "margin": "0 0 4px 0"},
+        "icon":      {"color": "#f5e6d8", "font-size": "15px"},
+        "nav-link":  {"color": "#f5e6d8", "padding": "5px 18px", "--hover-color": FEM_ORANGE,
+                      "font-size": "14px", "font-weight": "600"},
+        "nav-link-selected": {"background-color": FEM_NAVY, "color": "#ffffff"},
     },
 )
 
 st.markdown("")  # breathing room
 
-# ── Route to pages ────────────────────────────────────────────────────────────
-if selected == "Respondents":
-    render_respondents()
+# ══════════════════════════════════════════════════════════════════════════════
+# FORMATIVE RESEARCH
+# ══════════════════════════════════════════════════════════════════════════════
+if survey == "Formative Research":
+    selected = option_menu(
+        menu_title=None,
+        options=[
+            "Respondents",
+            "Personas",
+            "Drivers & Barriers",
+            "Agreement & Characteristics",
+            "Radio",
+            "Family Planning",
+            "Personality Traits",
+            "Access & Supply",
+        ],
+        icons=[
+            "bar-chart-fill",
+            "people-fill",
+            "speedometer2",
+            "card-checklist",
+            "speaker-fill",
+            "house-heart-fill",
+            "file-earmark-person-fill",
+            "capsule",
+        ],
+        menu_icon="cast",
+        default_index=1,
+        orientation="horizontal",
+        styles={
+            "container": {"background-color": FEM_TAUPE, "padding": "0", "margin": "0"},
+            "icon":      {"color": FEM_ORANGE, "font-size": "14px"},
+            "nav-link":  {"padding": "4px 10px", "--hover-color": FEM_STEEL},
+            "nav-link-selected": {"background-color": FEM_NAVY},
+        },
+    )
 
-elif selected == "Personas":
-    render_personas()
+    st.markdown("")
 
-elif selected == "Drivers & Barriers":
-    render_drivers_barriers()
+    if selected == "Respondents":
+        render_respondents()
+    elif selected == "Personas":
+        render_personas()
+    elif selected == "Drivers & Barriers":
+        render_drivers_barriers()
+    elif selected == "Agreement & Characteristics":
+        render_agreement_characteristics()
+    elif selected == "Radio":
+        render_radio()
+    elif selected == "Family Planning":
+        render_family_planning()
+    elif selected == "Personality Traits":
+        render_personality_traits()
+    elif selected == "Access & Supply":
+        render_access()
 
-elif selected == "Agreement & Characteristics":
-    render_agreement_characteristics()
+# ══════════════════════════════════════════════════════════════════════════════
+# PHONE PULSE
+# ══════════════════════════════════════════════════════════════════════════════
+elif survey == "Phone Pulse":
+    pp_selected = option_menu(
+        menu_title=None,
+        options=[
+            "Respondents",
+            "Family Planning",
+            "Attitudes",
+            "Radio",
+            "Partner & Norms",
+        ],
+        icons=[
+            "bar-chart-fill",
+            "house-heart-fill",
+            "chat-quote-fill",
+            "speaker-fill",
+            "people-fill",
+        ],
+        menu_icon="telephone-fill",
+        default_index=0,
+        orientation="horizontal",
+        styles={
+            "container": {"background-color": FEM_STEEL, "padding": "0", "margin": "0"},
+            "icon":      {"color": "#dce8f0", "font-size": "14px"},
+            "nav-link":  {"color": "#dce8f0", "padding": "4px 10px",
+                          "--hover-color": FEM_TAUPE},
+            "nav-link-selected": {"background-color": FEM_NAVY},
+        },
+    )
 
-elif selected == "Radio":
-    render_radio()
+    st.markdown("")
 
-elif selected == "Family Planning":
-    render_family_planning()
-
-elif selected == "Personality Traits":
-    render_personality_traits()
-
-elif selected == "Access & Supply":
-    render_access()
+    if pp_selected == "Respondents":
+        render_pp_respondents()
+    elif pp_selected == "Family Planning":
+        render_pp_family_planning()
+    elif pp_selected == "Attitudes":
+        render_pp_attitudes()
+    elif pp_selected == "Radio":
+        render_pp_radio()
+    elif pp_selected == "Partner & Norms":
+        render_pp_partner_norms()
