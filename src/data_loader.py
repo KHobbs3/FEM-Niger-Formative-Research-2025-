@@ -154,23 +154,22 @@ def load_respondents_profile():
 PP_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
 def _load_pp(filename: str, **kwargs) -> pd.DataFrame:
-    path = os.path.join(PP_DATA_DIR, filename)
-    return pd.read_csv(path, **kwargs)
+    return pd.read_csv("https://drive.google.com/uc?export=download&id="+file_id, **kwargs)
 
-def load_pp_respondents_profile():   return _load_pp("pp_respondents_profile.csv")
-def load_pp_fp_awareness():          return _load_pp("pp_fp_awareness.csv")
-def load_pp_fp_method_used():        return _load_pp("pp_fp_method_used.csv")
-def load_pp_fp_whynot():             return _load_pp("pp_fp_whynot.csv")
-def load_pp_fp_preg_chance():        return _load_pp("pp_fp_preg_chance.csv")
-def load_pp_attitudes():             return _load_pp("pp_attitudes.csv")
-def load_pp_radio_any():             return _load_pp("pp_radio_any.csv")
-def load_pp_radio_hours():           return _load_pp("pp_radio_hours.csv")
-def load_pp_radio_days():            return _load_pp("pp_radio_days.csv")
-def load_pp_radio_uptake():          return _load_pp("pp_radio_uptake.csv")
-def load_pp_radio_stations():        return _load_pp("pp_radio_stations.csv")
-def load_pp_partner_decision():      return _load_pp("pp_partner_decision.csv")
-def load_pp_partner_norms():         return _load_pp("pp_partner_norms.csv")
-def load_pp_partner_discuss():       return _load_pp("pp_partner_discuss.csv")
+def load_pp_respondents_profile():   return _load_pp("1TVHSn3BwIUvHqT4jwABQ73G35N9qmv0J")
+def load_pp_fp_awareness():          return _load_pp("16ypwYJhHa7FC8d9MRzeticWl1t54N-BK")
+def load_pp_fp_method_used():        return _load_pp("1WCjN2ZOKQMnVpxTVG7038FIqV75xEHAu")
+def load_pp_fp_whynot():             return _load_pp("15a57RxqiM3S0-ssCj3uhs3P03k0Rdy8z")
+def load_pp_fp_preg_chance():        return _load_pp("14ff2F-ApOYekPElVLC9Cc6V-QVGJOzw4")
+def load_pp_attitudes():             return _load_pp("1-V85eytJWPhLoSZ6jJkYyK62aNclNY6n")
+def load_pp_radio_any():             return _load_pp("1Z7n4t6Ym4kPZaT4rufaxk3NojWjkyPVr")
+def load_pp_radio_hours():           return _load_pp("1pxyN2c4tk73XuG5qjgk1iMMgRTWc2g1z")
+def load_pp_radio_days():            return _load_pp("1Zd0j1fXD6I9OiRGegniDVEHzbf0nhJZb")
+def load_pp_radio_uptake():          return _load_pp("1VXQkr5fXazGnRJSUhipSB9Otn1-Pg6fM")
+def load_pp_radio_stations():        return _load_pp("1BhMoXwxsw5FgPULn3UitjXdvW_oIedCt")
+def load_pp_partner_decision():      return _load_pp("1CWL6zkAIausdpGTAJ_99-AS8tevYcfOB")
+def load_pp_partner_norms():         return _load_pp("1frZ0a4TYoA85OBoSOUQUdh7WVj6kFlbn")
+def load_pp_partner_discuss():       return _load_pp("1jCFxGacV2ggeRs74zrwLDmVwCFrL34h_")
 
 
 # ── Personas page ─────────────────────────────────────────────────────────────
