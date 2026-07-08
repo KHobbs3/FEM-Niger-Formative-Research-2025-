@@ -3,9 +3,9 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+from src.data_loader import load_pp_attitudes
+
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
 FEM_TAUPE  = "#7A7068"
@@ -46,8 +46,8 @@ def _dot_chart(df: pd.DataFrame, title: str) -> go.Figure:
 
 def render() -> None:
     try:
-        df = pd.read_csv(DATA_DIR / "pp_attitudes.csv")
-    except FileNotFoundError:
+        df = load_pp_attitudes()
+    except Exception:
         st.error("Attitude data not found. Re-run export_pp_app_data.py.")
         return
 

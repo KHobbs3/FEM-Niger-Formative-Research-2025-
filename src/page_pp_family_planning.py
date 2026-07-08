@@ -3,9 +3,14 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+from src.data_loader import (
+    load_pp_fp_awareness,
+    load_pp_fp_method_used,
+    load_pp_fp_whynot,
+    load_pp_fp_preg_chance,
+)
+
 FEM_ORANGE = "#C1693A"
 FEM_BROWN  = "#8B5E45"
 FEM_NAVY   = "#2E3F52"
@@ -56,7 +61,7 @@ def render() -> None:
     ])
 
     with tab1:
-        df = pd.read_csv(DATA_DIR / "pp_fp_awareness.csv")
+        df = load_pp_fp_awareness()
         if df.empty:
             st.info("No data available.")
         else:
@@ -65,7 +70,7 @@ def render() -> None:
             st.caption("Base: all respondents in each group.")
 
     with tab2:
-        df = pd.read_csv(DATA_DIR / "pp_fp_method_used.csv")
+        df = load_pp_fp_method_used()
         if df.empty:
             st.info("No data — only applicable to current FP users.")
         else:
@@ -88,7 +93,7 @@ def render() -> None:
             st.caption("Base: respondents currently using FP (fpbeh_fpnow = 1).")
 
     with tab3:
-        df = pd.read_csv(DATA_DIR / "pp_fp_whynot.csv")
+        df = load_pp_fp_whynot()
         if df.empty:
             st.info("No data available.")
         else:
@@ -100,7 +105,7 @@ def render() -> None:
             )
 
     with tab4:
-        df = pd.read_csv(DATA_DIR / "pp_fp_preg_chance.csv")
+        df = load_pp_fp_preg_chance()
         if df.empty:
             st.info("No data available.")
         else:

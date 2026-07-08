@@ -3,9 +3,13 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+from src.data_loader import (
+    load_pp_partner_decision,
+    load_pp_partner_norms,
+    load_pp_partner_discuss,
+)
+
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
 FEM_TAUPE  = "#7A7068"
@@ -48,7 +52,7 @@ def render() -> None:
     tab1, tab2, tab3 = st.tabs(["FP decision-making", "Social norms", "Discussion norms"])
 
     with tab1:
-        df = pd.read_csv(DATA_DIR / "pp_partner_decision.csv")
+        df = load_pp_partner_decision()
         fig = _grouped_hbar(df, "Who decides about family planning? (partner_pressure)")
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
@@ -57,7 +61,7 @@ def render() -> None:
         )
 
     with tab2:
-        df = pd.read_csv(DATA_DIR / "pp_partner_norms.csv")
+        df = load_pp_partner_norms()
         if df.empty:
             st.info("No norm data available.")
         else:
@@ -90,7 +94,7 @@ def render() -> None:
             )
 
     with tab3:
-        df = pd.read_csv(DATA_DIR / "pp_partner_discuss.csv")
+        df = load_pp_partner_discuss()
         fig = _grouped_hbar(
             df, 'Agreement: "Not acceptable to discuss FP with friends" (pressure_discuss)'
         )

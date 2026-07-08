@@ -3,9 +3,9 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+from src.data_loader import load_pp_respondents_profile
+
 FEM_ORANGE = "#C1693A"
 FEM_BROWN  = "#8B5E45"
 FEM_NAVY   = "#2E3F52"
@@ -17,7 +17,7 @@ _CHART = dict(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
 
 
 def _load() -> pd.DataFrame:
-    return pd.read_csv(DATA_DIR / "pp_respondents_profile.csv")
+    return load_pp_respondents_profile()
 
 
 def _hbar(df: pd.DataFrame, title: str, color: str = FEM_NAVY) -> go.Figure:

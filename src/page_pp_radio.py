@@ -3,9 +3,15 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+from src.data_loader import (
+    load_pp_radio_any,
+    load_pp_radio_uptake,
+    load_pp_radio_days,
+    load_pp_radio_hours,
+    load_pp_radio_stations,
+)
+
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
 FEM_TAUPE  = "#7A7068"
@@ -59,22 +65,22 @@ def render() -> None:
     ])
 
     with tab1:
-        df = pd.read_csv(DATA_DIR / "pp_radio_any.csv")
+        df = load_pp_radio_any()
         _grouped_hbar(df, "Radio listenership",
                       caption="Base: all respondents.")
 
     with tab2:
-        df = pd.read_csv(DATA_DIR / "pp_radio_uptake.csv")
+        df = load_pp_radio_uptake()
         _grouped_hbar(df, "Heard FP content on radio",
                       caption="Base: all respondents.")
 
     with tab3:
-        df = pd.read_csv(DATA_DIR / "pp_radio_days.csv")
+        df = load_pp_radio_days()
         _grouped_hbar(df, "Days of the week listeners tune in",
                       caption="Base: radio listeners only.")
 
     with tab4:
-        df = pd.read_csv(DATA_DIR / "pp_radio_hours.csv")
+        df = load_pp_radio_hours()
         # Vertical bar for ordered buckets
         fig = go.Figure()
         hour_order = ["<1 hr", "1 hr", "2 hrs", "3 hrs", "4 hrs", "5–6 hrs", "7+ hrs"]
@@ -103,6 +109,6 @@ def render() -> None:
         st.caption("Base: radio listeners only.")
 
     with tab5:
-        df = pd.read_csv(DATA_DIR / "pp_radio_stations.csv")
+        df = load_pp_radio_stations()
         _grouped_hbar(df, "Station listenership (among radio listeners)",
                       caption="Base: radio listeners only. Placebo station is a control stimulus.")

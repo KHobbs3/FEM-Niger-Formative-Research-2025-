@@ -149,11 +149,9 @@ def load_respondents_profile():
     return _load("1Wiq13fTLzZS1aGRjU_5PwWcpjNnaQ-MU")
 
 
-# ── Phone Pulse pages (local CSVs — no PII) ───────────────────────────────────
+# ── Phone Pulse pages ──────────────────────────────────────────────────────────
 
-PP_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
-
-def _load_pp(filename: str, **kwargs) -> pd.DataFrame:
+def _load_pp(file_id: str, **kwargs) -> pd.DataFrame:
     return pd.read_csv("https://drive.google.com/uc?export=download&id="+file_id, **kwargs)
 
 def load_pp_respondents_profile():   return _load_pp("1TVHSn3BwIUvHqT4jwABQ73G35N9qmv0J")
