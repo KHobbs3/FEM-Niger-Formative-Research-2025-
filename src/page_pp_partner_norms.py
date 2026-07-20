@@ -13,22 +13,42 @@ from src.data_loader import (
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
 FEM_TAUPE  = "#7A7068"
-GROUP_COLORS = {"Using FP": FEM_NAVY, "Not using FP": FEM_ORANGE, "All": FEM_TAUPE}
-GROUP_ORDER  = ["Using FP", "Not using FP", "All"]
+FEM_BROWN  = "#8B5E45"
+FEM_STEEL  = "#5A6E7F"
+
+SPLIT_OPTIONS = {
+    "FP use status": {
+        "split_by": "fp_use",
+        "order":  ["Using FP", "Not using FP", "All"],
+        "colors": {"Using FP": FEM_NAVY, "Not using FP": FEM_ORANGE, "All": FEM_TAUPE},
+    },
+    "Gender": {
+        "split_by": "gender",
+        "order":  ["Male", "Female", "All"],
+        "colors": {"Male": FEM_STEEL, "Female": FEM_BROWN, "All": FEM_TAUPE},
+    },
+}
 
 _CHART = dict(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
 
 
-def _grouped_hbar(df: pd.DataFrame, title: str, xmax: float = 100) -> go.Figure:
+def _filter_split(df: pd.DataFrame, split_by: str) -> pd.DataFrame:
+    if "split_by" not in df.columns:
+        return df
+    return df[df["split_by"] == split_by]
+
+
+def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors: dict,
+                  xmax: float = 100) -> go.Figure:
     fig = go.Figure()
     n_cats = df["category"].nunique()
-    for grp in GROUP_ORDER:
+    for grp in group_order:
         sub = df[df["group"] == grp].sort_values("pct")
         if sub.empty:
             continue
         fig.add_trace(go.Bar(
             x=sub["pct"], y=sub["category"], orientation="h",
-            name=grp, marker_color=GROUP_COLORS[grp],
+            name=grp, marker_color=group_colors[grp],
             text=sub["pct"].map(lambda v: f"{v:.0f}%"),
             textposition="outside",
         ))
@@ -37,23 +57,28 @@ def _grouped_hbar(df: pd.DataFrame, title: str, xmax: float = 100) -> go.Figure:
         title=title, barmode="group",
         xaxis_title="% of respondents",
         xaxis_range=[0, xmax + 15],
-        height=max(250, 35 * n_cats * len(GROUP_ORDER) + 100),
-        margin=dict(l=10, r=30, t=50, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=max(250, 35 * n_cats * len(group_order) + 100),
+        margin=dict(l=10, r=30, t=78, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="right", x=1),
     )
     return fig
 
 
 def render() -> None:
     st.markdown("### Phone Pulse — Partner Dynamics & Social Norms")
-    st.caption("Results broken down by current FP use status.")
+
+    view = st.radio("View by", list(SPLIT_OPTIONS.keys()), horizontal=True, key="pp_partner_split")
+    split = SPLIT_OPTIONS[view]
+    split_by, order, colors = split["split_by"], split["order"], split["colors"]
+
+    st.caption(f"Results broken down by {view.lower()}.")
     st.markdown("---")
 
     tab1, tab2, tab3 = st.tabs(["FP decision-making", "Social norms", "Discussion norms"])
 
     with tab1:
-        df = load_pp_partner_decision()
-        fig = _grouped_hbar(df, "Who decides about family planning? (partner_pressure)")
+        df = _filter_split(load_pp_partner_decision(), split_by)
+        fig = _grouped_hbar(df, "Who decides about family planning? (partner_pressure)", order, colors)
         st.plotly_chart(fig, use_container_width=True)
         st.caption(
             "1 = Mainly respondent, 2 = Mainly spouse, 3 = Joint decision, "
@@ -61,18 +86,18 @@ def render() -> None:
         )
 
     with tab2:
-        df = load_pp_partner_norms()
+        df = _filter_split(load_pp_partner_norms(), split_by)
         if df.empty:
             st.info("No norm data available.")
         else:
             fig = go.Figure()
-            for grp in GROUP_ORDER:
+            for grp in order:
                 sub = df[df["group"] == grp].dropna(subset=["mean"])
                 if sub.empty:
                     continue
                 fig.add_trace(go.Bar(
                     x=sub["mean"], y=sub["label"], orientation="h",
-                    name=grp, marker_color=GROUP_COLORS[grp],
+                    name=grp, marker_color=colors[grp],
                     text=sub["mean"].map(lambda v: f"{v:.2f}"),
                     textposition="outside",
                 ))
@@ -82,9 +107,9 @@ def render() -> None:
                 barmode="group",
                 xaxis_title="Mean agreement (0 = Strongly disagree, 4 = Strongly agree)",
                 xaxis_range=[0, 5],
-                height=350,
-                margin=dict(l=10, r=30, t=50, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                height=375,
+                margin=dict(l=10, r=30, t=78, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.15),
             )
             fig.add_vline(x=2, line_dash="dot", line_color="#aaa")
             st.plotly_chart(fig, use_container_width=True)
@@ -94,9 +119,10 @@ def render() -> None:
             )
 
     with tab3:
-        df = load_pp_partner_discuss()
+        df = _filter_split(load_pp_partner_discuss(), split_by)
         fig = _grouped_hbar(
-            df, 'Agreement: "Not acceptable to discuss FP with friends" (pressure_discuss)'
+            df, 'Agreement: "Not acceptable to discuss FP with friends" (pressure_discuss)',
+            order, colors,
         )
         st.plotly_chart(fig, use_container_width=True)
         st.caption(

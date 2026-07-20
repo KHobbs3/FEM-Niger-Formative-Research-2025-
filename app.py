@@ -17,6 +17,10 @@ from src.page_pp_family_planning import render as render_pp_family_planning
 from src.page_pp_attitudes import render as render_pp_attitudes
 from src.page_pp_radio import render as render_pp_radio
 from src.page_pp_partner_norms import render as render_pp_partner_norms
+from src.page_pp_media import render as render_pp_media
+from src.page_pp_access import render as render_pp_access
+from src.page_pp_social_pressure import render as render_pp_social_pressure
+from src.page_pp_exposure import render as render_pp_exposure
 
 # from src.page_stubs import (
     # render_personas,
@@ -153,17 +157,25 @@ elif survey == "Phone Pulse":
         menu_title=None,
         options=[
             "Respondents",
+            "Campaign Exposure",
             "Family Planning",
             "Attitudes",
             "Radio",
             "Partner & Norms",
+            "Media",
+            "Access Barriers",
+            "Social Pressure",
         ],
         icons=[
             "bar-chart-fill",
+            "broadcast",
             "house-heart-fill",
             "chat-quote-fill",
             "speaker-fill",
             "people-fill",
+            "tv-fill",
+            "signpost-split-fill",
+            "chat-square-heart-fill",
         ],
         menu_icon="telephone-fill",
         default_index=0,
@@ -181,6 +193,8 @@ elif survey == "Phone Pulse":
 
     if pp_selected == "Respondents":
         render_pp_respondents()
+    elif pp_selected == "Campaign Exposure":
+        render_pp_exposure()
     elif pp_selected == "Family Planning":
         render_pp_family_planning()
     elif pp_selected == "Attitudes":
@@ -189,3 +203,9 @@ elif survey == "Phone Pulse":
         render_pp_radio()
     elif pp_selected == "Partner & Norms":
         render_pp_partner_norms()
+    elif pp_selected == "Media":
+        render_pp_media()
+    elif pp_selected == "Access Barriers":
+        render_pp_access()
+    elif pp_selected == "Social Pressure":
+        render_pp_social_pressure()
