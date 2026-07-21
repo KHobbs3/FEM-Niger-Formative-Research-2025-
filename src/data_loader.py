@@ -236,6 +236,12 @@ def load_pp_exposure_partner_norms():  return _load_pp_or_none("1BbnIICp3K3CHASe
 # the link" sharing as the pp_* files above) and paste its file ID below.
 def load_knowledge_change():         return _load_pp("1SIp5w07_e2Q7QwZAkAqW-FdQEpx0ClJv")
 
+# Same deal for compare_fp_use.py's output. Generate it with:
+#   cd 3_linkage && python compare_fp_use.py
+# then upload outputs/fp_use_change_summary.csv to Drive and paste its file
+# ID in place of the placeholder below.
+def load_fp_use_change():            return _load_pp_or_none("PASTE_FILE_ID_fp_use_change")
+
 
 # ── Personas page ─────────────────────────────────────────────────────────────
 

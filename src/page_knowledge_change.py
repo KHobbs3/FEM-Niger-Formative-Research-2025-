@@ -1,10 +1,10 @@
-"""Phone Pulse — Contraceptive knowledge change (Baseline vs Follow-up)."""
+"""Phone Pulse — Baseline vs Follow-up (formative <-> pulse linkage)."""
 
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from src.data_loader import load_knowledge_change
+from src.data_loader import load_knowledge_change, load_fp_use_change
 
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
@@ -14,13 +14,19 @@ _CHART = dict(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
 SIG_THRESHOLD = 0.05
 
 
-def render() -> None:
+def _pending(csv_name: str) -> None:
+    st.info(
+        f"Data pending: run `3_linkage/compare_fp_use.py`, upload `{csv_name}.csv` to "
+        f"Drive with link sharing on, then paste its file ID into `data_loader.py`."
+    )
+
+
+def _render_method_awareness() -> None:
     df = load_knowledge_change()
 
     overall = df[df["method"] == "__OVERALL__"]
     methods = df[df["method"] != "__OVERALL__"].sort_values("known_pulse_pct")
 
-    st.markdown("### Phone Pulse — Contraceptive Knowledge Change")
     st.caption(
         "Awareness of specific contraceptive methods, Formative Research "
         "baseline vs. Phone Pulse follow-up, for respondents linked across "
@@ -88,3 +94,73 @@ def render() -> None:
         .reset_index(drop=True),
         use_container_width=True, hide_index=True,
     )
+
+
+def _render_fp_use() -> None:
+    df = load_fp_use_change()
+    if df is None:
+        _pending("fp_use_change_summary")
+        return
+    if df.empty:
+        st.info("No data available.")
+        return
+
+    st.caption(
+        "Current FP use, Formative Research baseline vs. Phone Pulse follow-up, "
+        "for respondents linked across both waves."
+    )
+    st.markdown("---")
+
+    row = df.iloc[0]
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Using FP at baseline", f"{row['using_baseline_pct']:.1f}%")
+    col2.metric(
+        "Using FP at follow-up", f"{row['using_pulse_pct']:.1f}%",
+        delta=f"{row['using_pulse_pct'] - row['using_baseline_pct']:+.1f} pts",
+    )
+    col3.metric(
+        "Started using / Stopped",
+        f"{int(row['started_using_n'])} / {int(row['stopped_using_n'])}",
+    )
+
+    p_value = row.get("mcnemar_p_value")
+    direction = row.get("direction", "")
+    if pd.notna(p_value):
+        sig_note = (
+            f"Statistically significant (McNemar's exact test, p = {p_value:.4f})"
+            if p_value < SIG_THRESHOLD else
+            f"Not statistically significant (McNemar's exact test, p = {p_value:.4f})"
+        )
+        st.caption(f"{direction.capitalize() if direction else ''} — {sig_note}".strip(" —"))
+
+    fig = go.Figure(go.Bar(
+        x=[row["using_baseline_pct"], row["using_pulse_pct"]],
+        y=["Baseline", "Follow-up"],
+        orientation="h",
+        marker_color=[FEM_TAUPE, FEM_NAVY],
+        text=[f"{row['using_baseline_pct']:.1f}%", f"{row['using_pulse_pct']:.1f}%"],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        **_CHART,
+        title=row.get("question", "Currently using FP"),
+        xaxis_title="% of linked respondents",
+        xaxis_range=[0, 115],
+        height=260,
+        margin=dict(l=10, r=30, t=78, b=10),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "\"Started using\" = not using FP at baseline, using at follow-up. "
+        "\"Stopped\" = the reverse."
+    )
+
+
+def render() -> None:
+    st.markdown("### Phone Pulse — Baseline vs Follow-up")
+
+    tab1, tab2 = st.tabs(["Method Awareness", "Current FP Use"])
+    with tab1:
+        _render_method_awareness()
+    with tab2:
+        _render_fp_use()
