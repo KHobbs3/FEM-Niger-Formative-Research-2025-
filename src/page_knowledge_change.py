@@ -156,11 +156,30 @@ def _render_fp_use() -> None:
     )
 
 
+def _render_limitations() -> None:
+    with st.expander("Limitations & caveats"):
+        st.markdown(
+            "- **Measurement effect**: the baseline was an in-person interview and "
+            "the follow-up a phone call; the change in mode/privacy could shift "
+            "reported answers on its own, independent of any real change.\n"
+            "- **Linkage / attrition selection**: only 471 of 968 formative "
+            "respondents (92.5% of the 509 reachable Phone Pulse respondents) were "
+            "successfully linked across waves. If reachable/re-interviewed "
+            "respondents differ systematically from those lost to follow-up, this "
+            "comparison isn't necessarily representative of the full baseline sample.\n"
+            "- **Confounding variables**: seasonal patterns, supply/stockout "
+            "changes, or other health programming active over the same period "
+            "could also contribute to the change shown here."
+        )
+
+
 def render() -> None:
     st.markdown("### Phone Pulse — Baseline vs Follow-up")
 
     tab1, tab2 = st.tabs(["Method Awareness", "Current FP Use"])
     with tab1:
         _render_method_awareness()
+        _render_limitations()
     with tab2:
         _render_fp_use()
+        _render_limitations()
