@@ -55,6 +55,7 @@ def _filter_split(df: pd.DataFrame | None, split_by: str) -> pd.DataFrame | None
 def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors: dict,
                   xmax: float = 100) -> go.Figure:
     fig = go.Figure()
+    df = df[df["category"].notna()]
     n_cats = df["category"].nunique()
     for grp in group_order:
         sub = df[df["group"] == grp].sort_values("pct")
@@ -79,15 +80,35 @@ def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors:
 
 
 def _per_station_chart(df: pd.DataFrame, title: str, key: str, group_order: list, group_colors: dict) -> None:
-    """df has columns: group, station, category, count, pct."""
+    """df has columns: group, station, category, count, pct, n_assigned, n_listened.
+    n_assigned/n_listened are attached to the "All" group's rows (or the
+    first available group) as station-level context, since a station with
+    no listeners produces no category rows at all."""
     stations = sorted(df["station"].dropna().unique())
     if not stations:
         st.info("No station data available.")
         return
     station = st.selectbox("Station", stations, key=key)
     sub = df[df["station"] == station]
-    fig = _grouped_hbar(sub, f"{title} — {station}", group_order, group_colors)
-    st.plotly_chart(fig, use_container_width=True)
+
+    meta_rows = sub[sub["group"] == "All"]
+    meta = meta_rows.iloc[0] if not meta_rows.empty else (sub.iloc[0] if not sub.empty else None)
+    n_assigned = int(meta["n_assigned"]) if meta is not None and pd.notna(meta.get("n_assigned")) else None
+    n_listened = int(meta["n_listened"]) if meta is not None and pd.notna(meta.get("n_listened")) else None
+
+    if sub["category"].notna().any():
+        fig = _grouped_hbar(sub, f"{title} — {station}", group_order, group_colors)
+        st.plotly_chart(fig, use_container_width=True)
+        if n_assigned is not None:
+            st.caption(f"{n_listened} of {n_assigned} respondents assigned to this station reported listening to it at all.")
+    elif n_assigned is not None:
+        st.info(
+            f"No respondents assigned to {station} reported listening to it "
+            f"({n_listened} of {n_assigned} assigned), so there's no listening-frequency "
+            f"breakdown to show."
+        )
+    else:
+        st.info("No data available for this station.")
 
 
 def _by_question_charts(df: pd.DataFrame, group_order: list, group_colors: dict) -> None:

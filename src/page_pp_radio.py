@@ -52,12 +52,19 @@ def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors:
     fig = go.Figure()
     n_cats = df["category"].nunique()
     has_n = "n_assigned" in df.columns
+    has_nr = "n_no_response" in df.columns
     for grp in group_order:
         sub = df[df["group"] == grp].sort_values("pct")
         if sub.empty:
             continue
         trace_kw = {}
-        if has_n:
+        if has_n and has_nr:
+            trace_kw["customdata"] = sub[["n_assigned", "n_no_response"]].to_numpy()
+            trace_kw["hovertemplate"] = (
+                "%{y}: %{x:.1f}%% (%{customdata[0]:.0f} assigned; "
+                "%{customdata[1]:.0f} did not answer)<extra>%{fullData.name}</extra>"
+            )
+        elif has_n:
             trace_kw["customdata"] = sub[["n_assigned"]].to_numpy()
             trace_kw["hovertemplate"] = (
                 "%{y}: %{x:.1f}%% (%{customdata[0]:.0f} assigned to this station)<extra>%{fullData.name}</extra>"
@@ -159,8 +166,12 @@ def render() -> None:
                 "Base for each station's % is respondents ASSIGNED to that station "
                 "(it covers their settlement) — not all respondents, and not the same "
                 "denominator per station. Hover a bar to see how many respondents that "
-                "station was assigned to; a 100% on a station assigned to only 1-2 "
-                "people isn't a strong result. Placebo (non-partner control) stations "
-                "are excluded here — see the Media page for per-respondent placebo detail."
+                "station was assigned to, and how many left the listening question "
+                "blank (\"did not answer\") rather than answering \"No\" — a 0% with a "
+                "high did-not-answer count isn't the same result as a 0% where everyone "
+                "actually answered \"No\". A 100% on a station assigned to only 1-2 "
+                "people isn't a strong result either. Placebo (non-partner control) "
+                "stations are excluded here — see the Media page for per-respondent "
+                "placebo detail."
             ),
         )

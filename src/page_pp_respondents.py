@@ -51,13 +51,6 @@ def _row_count(df: pd.DataFrame, variable: str):
     return int(row["count"].iloc[0])
 
 
-def _row_pct(df: pd.DataFrame, variable: str):
-    row = df[df["variable"] == variable]
-    if row.empty or pd.isna(row["proportion"].iloc[0]):
-        return None
-    return row["proportion"].iloc[0] * 100
-
-
 def render() -> None:
     df = _load()
 
@@ -93,26 +86,6 @@ def render() -> None:
     else:
         st.metric("Total respondents (analysis sample)", n_total)
     st.markdown("---")
-
-    unmet_row = df[df["variable"] == "unmet_need_proxy"]
-    if not unmet_row.empty:
-        n_unmet = int(unmet_row["count"].iloc[0])
-        pct_unmet = _row_pct(df, "unmet_need_proxy")
-        st.markdown("#### Unmet need for contraception")
-        muc1, muc2 = st.columns([1, 3])
-        with muc1:
-            st.metric("Unmet need", f"{pct_unmet:.1f}%" if pct_unmet is not None else "—",
-                       help=f"{n_unmet} of {n_total} respondents in the analysis sample")
-        with muc2:
-            description = unmet_row["description"].iloc[0] if "description" in unmet_row.columns else None
-            if pd.notna(description):
-                st.caption(description)
-            else:
-                st.caption(
-                    "Not currently pregnant, does not want more children, and not "
-                    "currently using a modern contraceptive method."
-                )
-        st.markdown("---")
 
     col1, col2 = st.columns(2)
 

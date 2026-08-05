@@ -9,6 +9,7 @@ from src.data_loader import (
     load_pp_fp_method_used,
     load_pp_fp_whynot,
     load_pp_fp_preg_chance,
+    load_pp_respondents_profile,
 )
 
 FEM_ORANGE = "#C1693A"
@@ -66,8 +67,39 @@ def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors:
     return fig
 
 
+def _render_unmet_need() -> None:
+    profile = load_pp_respondents_profile()
+    unmet_row = profile[profile["variable"] == "unmet_need_proxy"]
+    base_row = profile[profile["variable"] == "_n_female_unmet_base"]
+    if unmet_row.empty:
+        return
+    n_unmet = int(unmet_row["count"].iloc[0])
+    n_female = int(base_row["count"].iloc[0]) if not base_row.empty else None
+    proportion = unmet_row["proportion"].iloc[0]
+    pct_unmet = proportion * 100 if pd.notna(proportion) else None
+
+    st.markdown("#### Unmet need for contraception (female respondents)")
+    muc1, muc2 = st.columns([1, 3])
+    with muc1:
+        help_text = f"{n_unmet} of {n_female} female respondents" if n_female else None
+        st.metric("Unmet need", f"{pct_unmet:.1f}%" if pct_unmet is not None else "—",
+                   help=help_text)
+    with muc2:
+        description = unmet_row["description"].iloc[0] if "description" in unmet_row.columns else None
+        if pd.notna(description):
+            st.caption(description)
+        else:
+            st.caption(
+                "Female respondents who are not currently pregnant, do not want more "
+                "children, and are not currently using a modern contraceptive method."
+            )
+    st.markdown("---")
+
+
 def render() -> None:
     st.markdown("### Phone Pulse — Family Planning Behaviour")
+
+    _render_unmet_need()
 
     view = st.radio("View by", list(SPLIT_OPTIONS.keys()), horizontal=True, key="pp_fp_split")
     split = SPLIT_OPTIONS[view]
