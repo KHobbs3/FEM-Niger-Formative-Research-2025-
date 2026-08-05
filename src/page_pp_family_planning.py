@@ -69,30 +69,42 @@ def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors:
 
 def _render_unmet_need() -> None:
     profile = load_pp_respondents_profile()
-    unmet_row = profile[profile["variable"] == "unmet_need_proxy"]
+    n_total_row = profile[profile["variable"] == "_total"]
+    n_total = int(n_total_row["count"].iloc[0]) if not n_total_row.empty else None
     base_row = profile[profile["variable"] == "_n_female_unmet_base"]
-    if unmet_row.empty:
-        return
-    n_unmet = int(unmet_row["count"].iloc[0])
     n_female = int(base_row["count"].iloc[0]) if not base_row.empty else None
-    proportion = unmet_row["proportion"].iloc[0]
-    pct_unmet = proportion * 100 if pd.notna(proportion) else None
 
-    st.markdown("#### Unmet need for contraception (female respondents)")
-    muc1, muc2 = st.columns([1, 3])
+    st.markdown("#### Unmet need for contraception")
+    muc1, muc2 = st.columns(2)
+
+    all_row = profile[profile["variable"] == "unmet_need_proxy"]
     with muc1:
-        help_text = f"{n_unmet} of {n_female} female respondents" if n_female else None
-        st.metric("Unmet need", f"{pct_unmet:.1f}%" if pct_unmet is not None else "—",
-                   help=help_text)
+        if not all_row.empty:
+            n_unmet_all = int(all_row["count"].iloc[0])
+            proportion = all_row["proportion"].iloc[0]
+            pct = proportion * 100 if pd.notna(proportion) else None
+            help_text = f"{n_unmet_all} of {n_total} respondents" if n_total else None
+            st.metric("Unmet need — whole sample", f"{pct:.1f}%" if pct is not None else "—",
+                       help=help_text)
+            description = all_row["description"].iloc[0] if "description" in all_row.columns else None
+            if pd.notna(description):
+                st.caption(description)
+
+    female_row = profile[profile["variable"] == "unmet_need_proxy_female"]
     with muc2:
-        description = unmet_row["description"].iloc[0] if "description" in unmet_row.columns else None
-        if pd.notna(description):
-            st.caption(description)
-        else:
-            st.caption(
-                "Female respondents who are not currently pregnant, do not want more "
-                "children, and are not currently using a modern contraceptive method."
-            )
+        if not female_row.empty:
+            n_unmet_female = int(female_row["count"].iloc[0])
+            proportion = female_row["proportion"].iloc[0]
+            pct = proportion * 100 if pd.notna(proportion) else None
+            help_text = f"{n_unmet_female} of {n_female} female respondents" if n_female else None
+            st.metric("Unmet need — female respondents", f"{pct:.1f}%" if pct is not None else "—",
+                       help=help_text)
+            description = female_row["description"].iloc[0] if "description" in female_row.columns else None
+            if pd.notna(description):
+                st.caption(description)
+
+    if all_row.empty and female_row.empty:
+        st.info("Unmet-need data pending — re-run export_pp_app_data.py and re-upload pp_respondents_profile.csv.")
     st.markdown("---")
 
 
