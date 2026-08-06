@@ -177,6 +177,12 @@ def load_pp_fp_method_used():        return _load_pp("1WCjN2ZOKQMnVpxTVG7038FIqV
 def load_pp_fp_whynot():             return _load_pp("15a57RxqiM3S0-ssCj3uhs3P03k0Rdy8z")
 def load_pp_fp_preg_chance():        return _load_pp("14ff2F-ApOYekPElVLC9Cc6V-QVGJOzw4")
 def load_pp_attitudes():             return _load_pp("1-V85eytJWPhLoSZ6jJkYyK62aNclNY6n")
+
+# pp_info_perceptions.csv output of export_pp_app_data.py. Generate/refresh it with:
+#   cd "2_phone pulse/etl_pipeline" && python export_pp_app_data.py
+# then upload data/pp_info_perceptions.csv to Drive and paste its file ID
+# in place of the placeholder below.
+def load_pp_info_perceptions():      return _load_pp_or_none("PASTE_FILE_ID_pp_info_perceptions")
 def load_pp_radio_any():             return _load_pp("1Z7n4t6Ym4kPZaT4rufaxk3NojWjkyPVr")
 def load_pp_radio_hours():           return _load_pp("1pxyN2c4tk73XuG5qjgk1iMMgRTWc2g1z")
 def load_pp_radio_days():            return _load_pp("1Zd0j1fXD6I9OiRGegniDVEHzbf0nhJZb")

@@ -4,7 +4,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from src.data_loader import load_pp_attitudes
+from src.data_loader import load_pp_attitudes, load_pp_info_perceptions
 
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
@@ -31,6 +31,72 @@ SCALE_NOTE = (
     "Scale: 0 = Strongly disagree → 4 = Strongly agree. "
     "Higher scores indicate stronger agreement with the statement."
 )
+
+QUESTION_CATEGORY_ORDER = {
+    "When can a woman become pregnant again after delivery?": [
+        "Immediately / within days", "Within the first month",
+        "1–3 months after delivery", "4–6 months after delivery",
+        "6–12 months after delivery", "More than a year", "It depends",
+    ],
+    "Likelihood FP methods make it harder for a woman to get pregnant later": [
+        "Very likely", "Somewhat likely", "Neither likely nor unlikely",
+        "Unlikely", "Very unlikely",
+    ],
+    "Likelihood a woman's menstrual cycle changes or stops while using FP": [
+        "Very likely", "Somewhat likely", "Neither likely nor unlikely",
+        "Unlikely", "Very unlikely",
+    ],
+    "Recommended wait after giving birth before trying to conceive again": [
+        "At least 6 months", "At least one year", "At least two years", "At least 4 years",
+    ],
+}
+
+# Notes shown under specific questions — only where there's a well-established
+# correct answer / myth to call out; the other two items are purely descriptive.
+QUESTION_NOTES = {
+    "Likelihood FP methods make it harder for a woman to get pregnant later": (
+        "FP methods do not cause long-term infertility — this is a well-documented "
+        "myth, not a real side effect. \"Very likely\"/\"Somewhat likely\" answers "
+        "reflect the misconception."
+    ),
+    "Recommended wait after giving birth before trying to conceive again": (
+        "WHO recommends waiting at least 24 months after a live birth before the "
+        "next pregnancy — \"At least two years\" is the medically correct answer."
+    ),
+}
+
+
+def _info_perception_chart(df: pd.DataFrame, question: str, group_order: list, group_colors: dict):
+    sub = df[df["question"] == question]
+    if sub.empty:
+        return None
+    order = QUESTION_CATEGORY_ORDER.get(question)
+    fig = go.Figure()
+    for grp in group_order:
+        g = sub[sub["group"] == grp]
+        if g.empty:
+            continue
+        if order:
+            g = g.set_index("category").reindex(order).reset_index()
+            g["pct"] = g["pct"].fillna(0)
+        fig.add_trace(go.Bar(
+            x=g["pct"], y=g["category"], orientation="h",
+            name=grp, marker_color=group_colors[grp],
+            text=g["pct"].map(lambda v: f"{v:.0f}%" if pd.notna(v) else ""),
+            textposition="outside",
+        ))
+    n_cats = len(order) if order else sub["category"].nunique()
+    fig.update_layout(
+        **_CHART,
+        title=question, barmode="group",
+        xaxis_title="% of respondents", xaxis_range=[0, 115],
+        height=max(260, 32 * n_cats * len(group_order) + 100),
+        margin=dict(l=10, r=30, t=78, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="right", x=1),
+    )
+    if order:
+        fig.update_yaxes(categoryorder="array", categoryarray=list(reversed(order)))
+    return fig
 
 
 def _filter_split(df: pd.DataFrame, split_by: str) -> pd.DataFrame:
@@ -83,8 +149,9 @@ def render() -> None:
     )
     st.markdown("---")
 
-    tab_self, tab_spouse, tab_commu = st.tabs(
-        ["Own attitudes", "Perceived spouse attitudes", "Perceived community attitudes"]
+    tab_self, tab_spouse, tab_commu, tab_knowledge = st.tabs(
+        ["Own attitudes", "Perceived spouse attitudes", "Perceived community attitudes",
+         "Knowledge & Perceptions"]
     )
 
     for tab, perspective, label in [
@@ -113,3 +180,32 @@ def render() -> None:
                     pivot[g] = pivot[g].map(lambda v: f"{v:.2f}" if pd.notna(v) else "—")
             pivot = pivot.rename(columns={"label": "Statement"})
             st.dataframe(pivot, use_container_width=True, hide_index=True)
+
+    with tab_knowledge:
+        info_df = load_pp_info_perceptions()
+        if info_df is None:
+            st.info(
+                "Data pending: run `export_pp_app_data.py`, upload "
+                "`pp_info_perceptions.csv` to Drive, then paste its file ID into "
+                "`data_loader.py`."
+            )
+        else:
+            st.caption(
+                "Fertility-return, FP-myth, and program-message knowledge items — "
+                f"broken down by {view.lower()}. **These four questions were only "
+                "asked in this Phone Pulse follow-up survey — there's no equivalent "
+                "question in the Formative Research baseline, so this is descriptive "
+                "only, not a baseline-vs-follow-up comparison.**"
+            )
+            info_sub = _filter_split(info_df, split_by)
+            if info_sub.empty:
+                st.info("No data available.")
+            else:
+                for question in QUESTION_CATEGORY_ORDER:
+                    fig = _info_perception_chart(info_sub, question, order, colors)
+                    if fig is None:
+                        continue
+                    st.plotly_chart(fig, use_container_width=True)
+                    note = QUESTION_NOTES.get(question)
+                    if note:
+                        st.caption(note)
