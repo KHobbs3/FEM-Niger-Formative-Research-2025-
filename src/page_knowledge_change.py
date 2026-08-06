@@ -21,15 +21,25 @@ def _pending(csv_name: str) -> None:
     )
 
 
-def _render_questions_asked(baseline_q: str, followup_q: str) -> None:
+def _footnotes(items: list[str]) -> None:
+    """Render a small numbered "Sources" list — superscript markers in the
+    surrounding text (¹ ² ³ …) refer to these in order."""
+    st.caption("Sources:  " + "&nbsp;&nbsp;·&nbsp;&nbsp; ".join(
+        f"{i+1}. {text}" for i, text in enumerate(items)
+    ))
+
+
+def _render_questions_asked(baseline_q: str, followup_q: str, sources: list[str]) -> None:
     with st.expander("Survey questions asked"):
-        st.markdown(f"**Formative Research (baseline, in-person interview):**\n\n> {baseline_q}")
-        st.markdown(f"**Phone Pulse (follow-up, phone call):**\n\n> {followup_q}")
+        st.markdown(f"**Formative Research (baseline, in-person interview):**¹\n\n> {baseline_q}")
+        st.markdown(f"**Phone Pulse (follow-up, phone call):**²\n\n> {followup_q}")
         st.caption(
             "The two surveys were run in different languages/modes and don't use "
             "identical wording — see the Limitations section below for what that "
             "can mean for comparability."
         )
+        st.markdown("---")
+        _footnotes(sources)
 
 
 def _render_method_awareness() -> None:
@@ -54,16 +64,27 @@ def _render_method_awareness() -> None:
         "avoiding pregnancies. Can you list all of the methods you know about for "
         "family planning?\" — **enumerator instruction: read each method and ask if "
         "the respondent has heard of it.** Asked of everyone.",
+        sources=[
+            "field `known_contraceptive_options`, `label`/`hint` columns — "
+            "`1_formative_research/table_analysis/data/1_raw/Ha-Fr_Collecte de "
+            "Données sur le Terrain.xlsx`, sheet `survey`.",
+            "field `fpbeh_awarefp`, `label`/`hint` columns — `2_phone pulse/meta/"
+            "Participants_Appels de Suivi.xlsx`, sheet `survey`.",
+        ],
     )
     st.warning(
         "⚠️ **Not apples-to-apples**: baseline used unprompted (unaided) recall — "
-        "the enumerator never read out the method list — while follow-up used "
+        "the enumerator never read out the method list¹ — while follow-up used "
         "prompted (aided) recall — the enumerator read each method aloud and asked "
-        "about it directly. Aided recall reliably produces higher \"known\" rates "
+        "about it directly². Aided recall reliably produces higher \"known\" rates "
         "than unaided recall in survey methodology generally, independent of any "
         "real change in awareness. Some (possibly most) of the baseline-to-follow-up "
         "increase shown below could be this measurement artifact rather than the "
         "campaign."
+    )
+    st.caption(
+        "¹ ² same form fields as \"Survey questions asked\" above — see that "
+        "expander for the exact source citation."
     )
     st.markdown("---")
 
@@ -152,13 +173,25 @@ def _render_fp_use() -> None:
         "\"Are you currently doing something or using any method to delay or "
         "avoid (your wife) getting pregnant?\" Only asked of respondents not "
         "currently pregnant.",
+        sources=[
+            "field `current_use`, `label`/`hint` columns — `1_formative_research/"
+            "table_analysis/data/1_raw/Ha-Fr_Collecte de Données sur le "
+            "Terrain.xlsx`, sheet `survey`; relevance condition on field `ever_use`.",
+            "field `fpbeh_fpnow`, `label` column — `2_phone pulse/meta/"
+            "Participants_Appels de Suivi.xlsx`, sheet `survey`; relevance "
+            "condition on field `current_pregnant`.",
+        ],
     )
     st.caption(
         "Note the reference period differs: baseline asks about the **last 6 "
         "months**, follow-up asks about **right now**. Someone who used a method "
         "in month 3 of the baseline window but stopped by the interview date "
-        "would count as \"using\" at baseline under this wording."
+        "would count as \"using\" at baseline under this wording.¹"
     )
+    _footnotes([
+        "field `current_use` hint vs. field `fpbeh_fpnow` label — same source "
+        "citation as \"Survey questions asked\" above.",
+    ])
     st.markdown("---")
 
     row = df.iloc[0]
@@ -229,11 +262,11 @@ def render() -> None:
     with st.expander("How this comparison works", expanded=True):
         st.markdown(
             "- **Paired, not two separate samples.** Every \"baseline\" number on "
-            "this page comes from the SAME 471 people whose \"follow-up\" number "
+            "this page comes from the SAME 471 people¹ whose \"follow-up\" number "
             "sits next to it — the 471 respondents successfully linked, via a "
             "roster crosswalk, between the Formative Research baseline (968 "
-            "respondents total) and this Phone Pulse follow-up (509 respondents "
-            "who passed QA). The other 497 baseline respondents never appear on "
+            "respondents total)¹ and this Phone Pulse follow-up (509 respondents "
+            "who passed QA)². The other 497 baseline respondents never appear on "
             "this page at all — not in the baseline % either.\n"
             "- **Why pairing matters**: because it's the same people at two "
             "points in time, the statistical tests used here (McNemar's exact "
@@ -245,6 +278,13 @@ def render() -> None:
             "asked\" in each tab below for the exact wording and known "
             "differences between the two."
         )
+        st.markdown("---")
+        _footnotes([
+            "`3_linkage/outputs/match_report.txt` — 968 formative, 509 phone "
+            "pulse, 471 linked (92.5% of phone pulse respondents).",
+            "`2_phone pulse/etl_pipeline/outputs/population_summary.csv` — "
+            "n_after_qa.",
+        ])
 
     tab1, tab2 = st.tabs(["Method Awareness", "Current FP Use"])
     with tab1:
