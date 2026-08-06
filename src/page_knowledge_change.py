@@ -21,6 +21,17 @@ def _pending(csv_name: str) -> None:
     )
 
 
+def _render_questions_asked(baseline_q: str, followup_q: str) -> None:
+    with st.expander("Survey questions asked"):
+        st.markdown(f"**Formative Research (baseline, in-person interview):**\n\n> {baseline_q}")
+        st.markdown(f"**Phone Pulse (follow-up, phone call):**\n\n> {followup_q}")
+        st.caption(
+            "The two surveys were run in different languages/modes and don't use "
+            "identical wording — see the Limitations section below for what that "
+            "can mean for comparability."
+        )
+
+
 def _render_method_awareness() -> None:
     df = load_knowledge_change()
 
@@ -29,8 +40,30 @@ def _render_method_awareness() -> None:
 
     st.caption(
         "Awareness of specific contraceptive methods, Formative Research "
-        "baseline vs. Phone Pulse follow-up, for respondents linked across "
-        "both waves."
+        "baseline vs. Phone Pulse follow-up, for the SAME 471 respondents "
+        "linked across both waves (not all 968 baseline respondents — see "
+        "\"How this comparison works\" above)."
+    )
+    _render_questions_asked(
+        "\"Which contraceptive methods are you familiar with?\" (English hint on the "
+        "SurveyCTO form; asked in Hausa in the field) — **enumerator instruction: "
+        "do NOT read the method list out loud; only record methods the respondent "
+        "volunteers unprompted.** Only asked of respondents who'd already indicated "
+        "they'd heard of birth spacing at all.",
+        "\"I want you to think about methods you have heard of for delaying or "
+        "avoiding pregnancies. Can you list all of the methods you know about for "
+        "family planning?\" — **enumerator instruction: read each method and ask if "
+        "the respondent has heard of it.** Asked of everyone.",
+    )
+    st.warning(
+        "⚠️ **Not apples-to-apples**: baseline used unprompted (unaided) recall — "
+        "the enumerator never read out the method list — while follow-up used "
+        "prompted (aided) recall — the enumerator read each method aloud and asked "
+        "about it directly. Aided recall reliably produces higher \"known\" rates "
+        "than unaided recall in survey methodology generally, independent of any "
+        "real change in awareness. Some (possibly most) of the baseline-to-follow-up "
+        "increase shown below could be this measurement artifact rather than the "
+        "campaign."
     )
     st.markdown("---")
 
@@ -107,7 +140,24 @@ def _render_fp_use() -> None:
 
     st.caption(
         "Current FP use, Formative Research baseline vs. Phone Pulse follow-up, "
-        "for respondents linked across both waves."
+        "for the SAME 471 respondents linked across both waves (not all 968 "
+        "baseline respondents — see \"How this comparison works\" above)."
+    )
+    _render_questions_asked(
+        "\"In the last six months, have you used any methods of childbirth "
+        "spacing?\" (English hint on the SurveyCTO form; asked in Hausa in the "
+        "field). Only asked of respondents who indicated they'd ever used FP — "
+        "skipped (and treated as \"not using\") for respondents who said they "
+        "never had.",
+        "\"Are you currently doing something or using any method to delay or "
+        "avoid (your wife) getting pregnant?\" Only asked of respondents not "
+        "currently pregnant.",
+    )
+    st.caption(
+        "Note the reference period differs: baseline asks about the **last 6 "
+        "months**, follow-up asks about **right now**. Someone who used a method "
+        "in month 3 of the baseline window but stopped by the interview date "
+        "would count as \"using\" at baseline under this wording."
     )
     st.markdown("---")
 
@@ -175,6 +225,26 @@ def _render_limitations() -> None:
 
 def render() -> None:
     st.markdown("### Phone Pulse — Baseline vs Follow-up")
+
+    with st.expander("How this comparison works", expanded=True):
+        st.markdown(
+            "- **Paired, not two separate samples.** Every \"baseline\" number on "
+            "this page comes from the SAME 471 people whose \"follow-up\" number "
+            "sits next to it — the 471 respondents successfully linked, via a "
+            "roster crosswalk, between the Formative Research baseline (968 "
+            "respondents total) and this Phone Pulse follow-up (509 respondents "
+            "who passed QA). The other 497 baseline respondents never appear on "
+            "this page at all — not in the baseline % either.\n"
+            "- **Why pairing matters**: because it's the same people at two "
+            "points in time, the statistical tests used here (McNemar's exact "
+            "test, Wilcoxon signed-rank) can ask \"did *this group's* answers "
+            "change more than chance would predict\" — a question a comparison "
+            "of two different samples couldn't answer.\n"
+            "- **Different survey mode**: baseline was an in-person interview "
+            "(mostly Hausa); follow-up is a phone call. See \"Survey questions "
+            "asked\" in each tab below for the exact wording and known "
+            "differences between the two."
+        )
 
     tab1, tab2 = st.tabs(["Method Awareness", "Current FP Use"])
     with tab1:
