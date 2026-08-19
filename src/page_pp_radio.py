@@ -207,6 +207,32 @@ def render() -> None:
         st.caption("Base: radio listeners only.")
 
     with tab5:
+        with st.expander("Survey question asked"):
+            st.markdown(
+                "> \"Let's now think in particular about **{station}**.\n>\n"
+                "> Have you listened to **{station}** in the last month?\"\n\n"
+                "Asked once per station the respondent is assigned to (`{station}` is "
+                "filled in with that respondent's actual assigned station name each "
+                "time — e.g. \"Radio Tarka\" or \"Haddin Kay Dakoro\"), yes/no.¹"
+            )
+            st.markdown(
+                "**Only asked at all if the respondent said they listen to radio in "
+                "general** (a prior yes/no question) — respondents who said they "
+                "don't listen to radio at all never see this question for any "
+                "station, and their answer is blank/\"no response\" for every "
+                "station they're assigned to. That's a structural skip, not a data "
+                "gap for that individual — but it does mean part of any station's "
+                "\"no response\" count in the chart below is these non-radio-listeners, "
+                "not people who listen to radio but skipped this one question."
+            )
+            st.caption(
+                "Sources:  1. field `radio_partner_1_listen` (and the equivalent "
+                "`radio_partner_N_listen` / `radio_partner_placebo_listen` for each "
+                "station slot), `label`/`relevance` columns — `2_phone pulse/meta/"
+                "Participants_Appels de Suivi.xlsx`, sheet `survey`; relevance "
+                "condition on field `radio_any`."
+            )
+
         df = _filter_split(load_pp_radio_stations(), split_by)
         title = "Station listenership (among respondents assigned to that station)"
         _grouped_hbar(
