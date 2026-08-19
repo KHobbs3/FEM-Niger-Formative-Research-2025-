@@ -90,6 +90,55 @@ def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors:
         st.caption(caption)
 
 
+def _stations_composition_chart(df: pd.DataFrame) -> None:
+    """
+    Stacked bar, one row per station: how the "% listened" denominator
+    actually breaks down — Yes / No / No response (left blank) — in raw
+    counts. Answers "is this 0% real non-listenership or missing data?"
+    directly in the chart instead of only on hover. Always shows the "All"
+    group of whichever split is active (this is about denominator
+    transparency, not a sub-group comparison).
+    """
+    if not {"n_assigned", "n_no_response"}.issubset(df.columns):
+        return
+    sub = df[df["group"] == "All"].copy()
+    if sub.empty:
+        return
+    sub["n_no"] = sub["n_assigned"] - sub["count"] - sub["n_no_response"]
+    sub = sub.sort_values("pct")
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=sub["count"], y=sub["category"], orientation="h",
+        name="Listened (Yes)", marker_color=FEM_NAVY,
+    ))
+    fig.add_trace(go.Bar(
+        x=sub["n_no"], y=sub["category"], orientation="h",
+        name="Did not listen (No)", marker_color=FEM_TAUPE,
+    ))
+    fig.add_trace(go.Bar(
+        x=sub["n_no_response"], y=sub["category"], orientation="h",
+        name="No response (left blank)", marker_color=FEM_ORANGE,
+    ))
+    fig.update_layout(
+        **_CHART,
+        title="What the denominator is made of: Yes / No / No response",
+        barmode="stack",
+        xaxis_title="Number of respondents assigned to this station",
+        height=max(300, 28 * sub["category"].nunique() + 120),
+        margin=dict(l=10, r=30, t=78, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.15, xanchor="right", x=1),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "Same stations/order as the chart above, in raw counts instead of %. A "
+        "station with a long orange (\"no response\") segment relative to its "
+        "total bar means a chunk of its 0%/low% came from unanswered questions, "
+        "not confirmed non-listenership — a long taupe (\"No\") segment means "
+        "people were actually asked and said no."
+    )
+
+
 def render() -> None:
     st.markdown("### Phone Pulse — Radio Listenership")
 
@@ -175,3 +224,5 @@ def render() -> None:
                 "placebo detail."
             ),
         )
+        st.markdown("#### Denominator detail")
+        _stations_composition_chart(df)
