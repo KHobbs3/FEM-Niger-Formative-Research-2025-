@@ -74,6 +74,12 @@ st.markdown(
     f"<h2 style='margin-bottom:0.2rem;color:{FEM_BROWN};'>FEM Survey Analysis - Niger (2025)</h2>",
     unsafe_allow_html=True,
 )
+st.caption(
+    "Niger Phone Pulse survey margin of error: designed for a 5% minimum "
+    "detectable effect (MDE), target sample size ~750 respondents. Actual "
+    "achieved sample: 544 raw submissions, 509 after QA exclusions (see the "
+    "Phone Pulse → Respondents page for the full funnel)."
+)
 
 # ── Top-level survey switcher ─────────────────────────────────────────────────
 survey = option_menu(
