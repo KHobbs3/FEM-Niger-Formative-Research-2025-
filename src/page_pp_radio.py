@@ -10,6 +10,7 @@ from src.data_loader import (
     load_pp_radio_days,
     load_pp_radio_hours,
     load_pp_radio_stations,
+    load_pp_radio_fp_stations,
 )
 
 FEM_ORANGE = "#C1693A"
@@ -90,14 +91,21 @@ def _grouped_hbar(df: pd.DataFrame, title: str, group_order: list, group_colors:
         st.caption(caption)
 
 
-def _stations_composition_chart(df: pd.DataFrame) -> None:
+def _stations_composition_chart(
+    df: pd.DataFrame,
+    yes_label: str = "Listened (Yes)",
+    no_label: str = "Did not listen (No)",
+    no_response_label: str = "No response (left blank)",
+    title: str = "What the denominator is made of: Yes / No / No response",
+) -> None:
     """
-    Stacked bar, one row per station: how the "% listened" denominator
-    actually breaks down — Yes / No / No response (left blank) — in raw
-    counts. Answers "is this 0% real non-listenership or missing data?"
-    directly in the chart instead of only on hover. Always shows the "All"
-    group of whichever split is active (this is about denominator
-    transparency, not a sub-group comparison).
+    Stacked bar, one row per station: how the "%" denominator actually
+    breaks down — Yes / No / No response (left blank) — in raw counts.
+    Answers "is this 0% real or missing data?" directly in the chart
+    instead of only on hover. Always shows the "All" group of whichever
+    split is active (this is about denominator transparency, not a
+    sub-group comparison). Reused for both the listenership chart and the
+    per-station FP-content chart — hence the customizable labels.
     """
     if not {"n_assigned", "n_no_response"}.issubset(df.columns):
         return
@@ -110,19 +118,19 @@ def _stations_composition_chart(df: pd.DataFrame) -> None:
     fig = go.Figure()
     fig.add_trace(go.Bar(
         x=sub["count"], y=sub["category"], orientation="h",
-        name="Listened (Yes)", marker_color=FEM_NAVY,
+        name=yes_label, marker_color=FEM_NAVY,
     ))
     fig.add_trace(go.Bar(
         x=sub["n_no"], y=sub["category"], orientation="h",
-        name="Did not listen (No)", marker_color=FEM_TAUPE,
+        name=no_label, marker_color=FEM_TAUPE,
     ))
     fig.add_trace(go.Bar(
         x=sub["n_no_response"], y=sub["category"], orientation="h",
-        name="No response (left blank)", marker_color=FEM_ORANGE,
+        name=no_response_label, marker_color=FEM_ORANGE,
     ))
     fig.update_layout(
         **_CHART,
-        title="What the denominator is made of: Yes / No / No response",
+        title=title,
         barmode="stack",
         xaxis_title="Number of respondents assigned to this station",
         height=max(300, 28 * sub["category"].nunique() + 120),
@@ -157,9 +165,9 @@ def render() -> None:
     st.caption(caption)
     st.markdown("---")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Listenership", "FP content heard", "Listening days",
-        "Daily hours", "Stations"
+        "Daily hours", "Stations", "FP Content by Station"
     ])
 
     with tab1:
@@ -252,3 +260,58 @@ def render() -> None:
         )
         st.markdown("#### Denominator detail")
         _stations_composition_chart(df)
+
+    with tab6:
+        with st.expander("Survey question asked"):
+            st.markdown(
+                "> \"How frequently have you heard these programs or ads in the "
+                "last few months on **{station}**?\"\n\n"
+                "Asked once per station the respondent is assigned to, same "
+                "\"fill in the actual station name\" pattern as the Stations tab. "
+                "Scale: Never / Once a month / Once a week / Several times a "
+                "week / Every day / Several times a day.¹ This chart collapses "
+                "that scale to \"heard at all\" (anything but \"Never\") vs. "
+                "\"Never\" vs. no response — see the Media page for the full "
+                "frequency breakdown among those who heard something."
+            )
+            st.markdown(
+                "**Only asked if the respondent said they listen to that "
+                "specific station** (verified in the exported data: this field "
+                "is blank for every respondent who didn't report listening to "
+                "that station) — so \"no response\" here is usually much larger "
+                "than on the Stations tab. That's expected: it includes everyone "
+                "assigned to the station who doesn't listen to it, not a data gap."
+            )
+            st.caption(
+                "Sources:  1. field `uptake_fp_freq_radio_1` (and the equivalent "
+                "`uptake_fp_freq_radio_N` / `uptake_fp_freq_radio_placebo` for "
+                "each station slot), `label` column — `2_phone pulse/meta/"
+                "Participants_Appels de Suivi.xlsx`, sheet `survey`."
+            )
+
+        df = _filter_split(load_pp_radio_fp_stations(), split_by)
+        if df is None:
+            st.info(
+                "Data pending: run `export_pp_app_data.py`, upload "
+                "`pp_radio_fp_stations.csv` to Drive, then paste its file ID "
+                "into `data_loader.py`."
+            )
+        else:
+            title = "Heard FP/MCH content by station (among respondents assigned to that station)"
+            _grouped_hbar(
+                df, title, order, colors,
+                caption=(
+                    "Base for each station's % is respondents ASSIGNED to that "
+                    "station — same denominator convention as the Stations tab. "
+                    "\"Heard\" = any frequency other than \"Never\". Hover a bar "
+                    "for n_assigned and no-response counts."
+                ),
+            )
+            st.markdown("#### Denominator detail")
+            _stations_composition_chart(
+                df,
+                yes_label="Heard FP content",
+                no_label="Never heard (explicit)",
+                no_response_label="No response (incl. non-listeners of this station)",
+                title="What the denominator is made of: Heard / Never / No response",
+            )

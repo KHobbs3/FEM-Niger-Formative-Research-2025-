@@ -188,6 +188,12 @@ def load_pp_radio_hours():           return _load_pp("1pxyN2c4tk73XuG5qjgk1iMMgR
 def load_pp_radio_days():            return _load_pp("1Zd0j1fXD6I9OiRGegniDVEHzbf0nhJZb")
 def load_pp_radio_uptake():          return _load_pp("1VXQkr5fXazGnRJSUhipSB9Otn1-Pg6fM")
 def load_pp_radio_stations():        return _load_pp("1BhMoXwxsw5FgPULn3UitjXdvW_oIedCt")
+
+# pp_radio_fp_stations.csv output of export_pp_app_data.py. Generate/refresh it with:
+#   cd "2_phone pulse/etl_pipeline" && python export_pp_app_data.py
+# then upload data/pp_radio_fp_stations.csv to Drive and paste its file ID
+# in place of the placeholder below.
+def load_pp_radio_fp_stations():     return _load_pp_or_none("PASTE_FILE_ID_pp_radio_fp_stations")
 def load_pp_partner_decision():      return _load_pp("1CWL6zkAIausdpGTAJ_99-AS8tevYcfOB")
 def load_pp_partner_norms():         return _load_pp("1frZ0a4TYoA85OBoSOUQUdh7WVj6kFlbn")
 def load_pp_partner_discuss():       return _load_pp("1jCFxGacV2ggeRs74zrwLDmVwCFrL34h_")
