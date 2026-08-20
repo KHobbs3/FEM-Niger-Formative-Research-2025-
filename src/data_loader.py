@@ -182,7 +182,7 @@ def load_pp_attitudes():             return _load_pp("1-V85eytJWPhLoSZ6jJkYyK62a
 #   cd "2_phone pulse/etl_pipeline" && python export_pp_app_data.py
 # then upload data/pp_info_perceptions.csv to Drive and paste its file ID
 # in place of the placeholder below.
-def load_pp_info_perceptions():      return _load_pp_or_none("PASTE_FILE_ID_pp_info_perceptions")
+def load_pp_info_perceptions():      return _load_pp_or_none("1sOZpY4vk6ySP2VH1qESCkOWtEzS33RTy")
 def load_pp_radio_any():             return _load_pp("1Z7n4t6Ym4kPZaT4rufaxk3NojWjkyPVr")
 def load_pp_radio_hours():           return _load_pp("1pxyN2c4tk73XuG5qjgk1iMMgRTWc2g1z")
 def load_pp_radio_days():            return _load_pp("1Zd0j1fXD6I9OiRGegniDVEHzbf0nhJZb")
