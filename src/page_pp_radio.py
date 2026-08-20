@@ -40,10 +40,13 @@ SPLIT_OPTIONS = {
 _CHART = dict(plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)")
 
 
-def _filter_split(df: pd.DataFrame, split_by: str) -> pd.DataFrame:
+def _filter_split(df: pd.DataFrame | None, split_by: str) -> pd.DataFrame | None:
     """Filter a df to one split dimension. Older/cached exports without a
-    split_by column (pre-gender-slicing) are passed through unfiltered."""
-    if "split_by" not in df.columns:
+    split_by column (pre-gender-slicing) are passed through unfiltered.
+    df can be None (a load_pp_*_or_none loader whose Drive file isn't
+    uploaded yet) — pass that through too rather than crashing on
+    df.columns; callers are expected to check for None before charting."""
+    if df is None or "split_by" not in df.columns:
         return df
     return df[df["split_by"] == split_by]
 
@@ -289,14 +292,15 @@ def render() -> None:
                 "Participants_Appels de Suivi.xlsx`, sheet `survey`."
             )
 
-        df = _filter_split(load_pp_radio_fp_stations(), split_by)
-        if df is None:
+        fp_stations_raw = load_pp_radio_fp_stations()
+        if fp_stations_raw is None:
             st.info(
                 "Data pending: run `export_pp_app_data.py`, upload "
                 "`pp_radio_fp_stations.csv` to Drive, then paste its file ID "
                 "into `data_loader.py`."
             )
         else:
+            df = _filter_split(fp_stations_raw, split_by)
             title = "Heard FP/MCH content by station (among respondents assigned to that station)"
             _grouped_hbar(
                 df, title, order, colors,
