@@ -13,6 +13,7 @@ from src.page_personality_traits import render as render_personality_traits
 
 # Phone Pulse pages
 from src.page_pp_respondents import render as render_pp_respondents
+from src.page_pp_personas import render as render_pp_personas
 from src.page_pp_family_planning import render as render_pp_family_planning
 from src.page_pp_attitudes import render as render_pp_attitudes
 from src.page_pp_radio import render as render_pp_radio
@@ -167,6 +168,7 @@ elif survey == "Phone Pulse":
             "Campaign Exposure",
             "Baseline vs Follow-up",
             "Family Planning",
+            "Personas",
             "Attitudes",
             "Radio",
             "Partner & Norms",
@@ -179,6 +181,7 @@ elif survey == "Phone Pulse":
             "broadcast",
             "arrow-left-right",
             "house-heart-fill",
+            "people-fill",
             "chat-quote-fill",
             "speaker-fill",
             "people-fill",
@@ -208,6 +211,8 @@ elif survey == "Phone Pulse":
         render_pp_knowledge_change()
     elif pp_selected == "Family Planning":
         render_pp_family_planning()
+    elif pp_selected == "Personas":
+        render_pp_personas()
     elif pp_selected == "Attitudes":
         render_pp_attitudes()
     elif pp_selected == "Radio":

@@ -198,6 +198,13 @@ def load_pp_partner_decision():      return _load_pp("1CWL6zkAIausdpGTAJ_99-AS8t
 def load_pp_partner_norms():         return _load_pp("1frZ0a4TYoA85OBoSOUQUdh7WVj6kFlbn")
 def load_pp_partner_discuss():       return _load_pp("1jCFxGacV2ggeRs74zrwLDmVwCFrL34h_")
 
+# pp_personas_comparison.csv — output of
+# 2_phone pulse/analysis/personas_users_vs_nonusers.py (persona_comparison_full.csv).
+# Stored locally in data/ (not on Drive, unlike the other pp_* loaders above)
+# — re-copy the file here and re-run the app to refresh it.
+def load_pp_personas_comparison():
+    return _load_pp_or_none("1blShx9dKa6HMDGlOBjCSOSwChx8Y2mw8")
+
 
 # ── Media / Access / Social-pressure — NOT YET LIVE ────────────────────────────
 # export_pp_app_data.py now writes these CSVs to niger_app/data/ locally. To
