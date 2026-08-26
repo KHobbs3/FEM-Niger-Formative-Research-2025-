@@ -9,6 +9,9 @@ from src.data_loader import (
     load_personas_centroids_by_gender,
     load_personas_profile_by_gender,
     load_personas_elbow,
+    load_personas_centroids_by_fp_use,
+    load_personas_profile_by_fp_use,
+    load_personas_elbow_by_fp_use,
 )
 
 _MISSING = (
@@ -25,6 +28,37 @@ GENDER_DISPLAY = {
 GENDER_COLORS = {
     "Mace / Femme":   FEM_ORANGE,
     "Namiji / Homme": FEM_NAVY,
+}
+
+# FP-use split: same binary Using FP / Not using FP definition used
+# throughout the app (pipeline/config.py USER_GROUPS/NONUSER_GROUPS).
+FP_USE_DISPLAY = {
+    "Using FP":     "Using FP",
+    "Not using FP": "Not using FP",
+}
+FP_USE_COLORS = {
+    "Using FP":     FEM_NAVY,
+    "Not using FP": FEM_ORANGE,
+}
+
+# split key -> (centroid_col, display_map, color_map, loaders)
+SPLIT_CONFIG = {
+    "Gender": {
+        "group_col": "gender",
+        "display": GENDER_DISPLAY,
+        "colors": GENDER_COLORS,
+        "load_centroids": load_personas_centroids_by_gender,
+        "load_profile": load_personas_profile_by_gender,
+        "load_elbow": load_personas_elbow,
+    },
+    "FP use status": {
+        "group_col": "fp_use",
+        "display": FP_USE_DISPLAY,
+        "colors": FP_USE_COLORS,
+        "load_centroids": load_personas_centroids_by_fp_use,
+        "load_profile": load_personas_profile_by_fp_use,
+        "load_elbow": load_personas_elbow_by_fp_use,
+    },
 }
 
 
@@ -81,20 +115,20 @@ def _hbar(series, title, top_n=10, key=None):
 
 # ── Elbow plot ────────────────────────────────────────────────────────────────
 
-def render_elbow_plot(df_elbow):
+def render_elbow_plot(df_elbow, group_col, display_map, colors_map, legend_title):
     st.subheader("Choosing the number of clusters")
     st.caption(
         "Each line shows the within-cluster cost (sum of dissimilarities) for "
-        "k = 1 – 6 clusters, computed separately for female and male respondents. "
+        f"k = 1 – 6 clusters, computed separately per {legend_title.lower()}. "
         "The 'elbow' — where the curve flattens — indicates the optimal k."
     )
 
-    genders = df_elbow["gender"].unique()
+    groups = df_elbow[group_col].unique()
     fig = go.Figure()
-    for g in genders:
-        sub = df_elbow[df_elbow["gender"] == g].sort_values("k")
-        color = GENDER_COLORS.get(g, FEM_TAUPE)
-        label = GENDER_DISPLAY.get(g, g)
+    for g in groups:
+        sub = df_elbow[df_elbow[group_col] == g].sort_values("k")
+        color = colors_map.get(g, FEM_TAUPE)
+        label = display_map.get(g, g)
         fig.add_trace(go.Scatter(
             x=sub["k"], y=sub["cost"],
             mode="lines+markers",
@@ -108,17 +142,17 @@ def render_elbow_plot(df_elbow):
         yaxis=dict(title="Within-cluster cost", showgrid=True, gridcolor="#eeeeee"),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
-        legend=dict(title="Gender", bgcolor="rgba(0,0,0,0)"),
+        legend=dict(title=legend_title, bgcolor="rgba(0,0,0,0)"),
         margin=dict(l=10, r=10, t=10, b=10),
         height=320,
     )
-    st.plotly_chart(fig, use_container_width=True, key="elbow_plot")
+    st.plotly_chart(fig, use_container_width=True, key=f"elbow_plot_{group_col}")
 
 
 # ── Section renderers ─────────────────────────────────────────────────────────
 
-def render_centroid_table(df_centroids, gender=None):
-    key_suffix = gender.replace(" ", "_").replace("/", "") if gender else "overall"
+def render_centroid_table(df_centroids, group_col=None, group_label=None):
+    key_suffix = group_label.replace(" ", "_").replace("/", "") if group_label else "overall"
     st.subheader("Persona summary")
     st.caption(
         "Each row is a cluster centroid — the representative values for that persona. "
@@ -126,7 +160,8 @@ def render_centroid_table(df_centroids, gender=None):
     )
 
     display = df_centroids.copy()
-    display.drop(columns=["persona", "gender"], inplace=True, errors="ignore")
+    drop_cols = ["persona", "Unnamed: 0"] + ([group_col] if group_col else [])
+    display.drop(columns=drop_cols, inplace=True, errors="ignore")
     if "life_goals" in display.columns:
         display["life_goals"] = display["life_goals"].apply(_strip_hausa)
 
@@ -140,8 +175,8 @@ def render_centroid_table(df_centroids, gender=None):
     st.dataframe(display, use_container_width=True)
 
 
-def render_persona_profiles(df_profile, n_personas, gender=None):
-    key_suffix = gender.replace(" ", "_").replace("/", "") if gender else "overall"
+def render_persona_profiles(df_profile, n_personas, group_label=None):
+    key_suffix = group_label.replace(" ", "_").replace("/", "") if group_label else "overall"
     st.subheader("Persona deep-dive")
     st.caption("Select a persona to see the distribution of key variables within that cluster.")
 
@@ -178,8 +213,8 @@ def render_persona_profiles(df_profile, n_personas, gender=None):
                       key=f"persona_{key_suffix}_{persona_id}_{var}")
 
 
-def render_comparison(df_profile, n_personas, gender=None):
-    key_suffix = gender.replace(" ", "_").replace("/", "") if gender else "overall"
+def render_comparison(df_profile, n_personas, group_label=None):
+    key_suffix = group_label.replace(" ", "_").replace("/", "") if group_label else "overall"
     st.subheader("Persona comparison")
     st.caption("Compare the distribution of one variable across all personas.")
 
@@ -225,18 +260,18 @@ def render_comparison(df_profile, n_personas, gender=None):
     st.plotly_chart(fig, use_container_width=True, key=f"persona_compare_{key_suffix}")
 
 
-def _render_gender_tab(df_centroids_g, df_profile_g, gender_label):
+def _render_persona_tab(df_centroids_g, df_profile_g, group_label, group_col):
     n_personas = df_centroids_g["persona"].nunique()
-    render_centroid_table(df_centroids_g, gender=gender_label)
+    render_centroid_table(df_centroids_g, group_col=group_col, group_label=group_label)
     st.divider()
     if df_profile_g is not None and not df_profile_g.empty:
         tab1, tab2 = st.tabs(["Deep-dive", "Comparison"])
         with tab1:
-            render_persona_profiles(df_profile_g, n_personas, gender=gender_label)
+            render_persona_profiles(df_profile_g, n_personas, group_label=group_label)
         with tab2:
-            render_comparison(df_profile_g, n_personas, gender=gender_label)
+            render_comparison(df_profile_g, n_personas, group_label=group_label)
     else:
-        st.warning("Persona profile data not found for this gender.")
+        st.warning("Persona profile data not found for this group.")
 
 
 # ── Main render ───────────────────────────────────────────────────────────────
@@ -256,12 +291,13 @@ categorical data. Unlike k-means, k-modes uses modes (most frequent values) rath
 means as cluster centres, and measures dissimilarity by the number of mismatching
 categories between observations — making it well-suited to survey responses.
 
-**Clustering is run separately for female and male respondents** so that within-gender
-variation drives the clusters rather than gender itself.
+**Clustering is run separately within each group below** (gender, or FP-use status) so
+that within-group variation drives the clusters rather than the split variable itself.
 
-**Clustering variables:** age, occupation, religion, and life goals.
+**Clustering variables:** age, occupation, religion, and life goals (plus gender, when
+splitting by FP-use status instead of gender — see below).
 
-**Configuration:** 3 clusters per gender, initialised using the Cao method (which selects
+**Configuration:** 3 clusters per group, initialised using the Cao method (which selects
 starting centroids based on category frequency distributions to reduce sensitivity to
 random starting points), with 5 independent runs to improve stability. Results are fully
 reproducible (fixed random seed).
@@ -272,10 +308,22 @@ weighted N) is shown for each persona. Individual-level data is not stored or di
     """)
     st.markdown("")
 
-    # ── Load gender-split data ────────────────────────────────────────────────
-    df_centroids_g = load_personas_centroids_by_gender()
-    df_profile_g   = load_personas_profile_by_gender()
-    df_elbow       = load_personas_elbow()
+    # ── Split selector ────────────────────────────────────────────────────────
+    split_choice = st.radio(
+        "View personas by", list(SPLIT_CONFIG.keys()), horizontal=True, key="personas_split_by",
+    )
+    cfg = SPLIT_CONFIG[split_choice]
+    group_col, display_map, colors_map = cfg["group_col"], cfg["display"], cfg["colors"]
+    if split_choice == "FP use status":
+        st.caption(
+            "\"Using FP\" = current_use/past_use per the formative baseline survey's `use` "
+            "field; \"Not using FP\" = non-user/future-user. Same 3-clusters-per-group "
+            "k-modes methodology as the Gender view above, just split on a different variable."
+        )
+
+    df_centroids_g = cfg["load_centroids"]()
+    df_profile_g   = cfg["load_profile"]()
+    df_elbow       = cfg["load_elbow"]()
 
     if df_centroids_g is None or df_centroids_g.empty:
         st.warning(_MISSING)
@@ -284,18 +332,18 @@ weighted N) is shown for each persona. Individual-level data is not stored or di
     # ── Elbow plot ────────────────────────────────────────────────────────────
     if df_elbow is not None and not df_elbow.empty:
         with st.expander("Elbow plot — choosing number of clusters", expanded=False):
-            render_elbow_plot(df_elbow)
+            render_elbow_plot(df_elbow, group_col, display_map, colors_map, split_choice)
 
-    # ── Gender tabs ───────────────────────────────────────────────────────────
-    genders_in_data = df_centroids_g["gender"].unique().tolist()
-    tab_labels = [GENDER_DISPLAY.get(g, g) for g in genders_in_data]
+    # ── Group tabs ────────────────────────────────────────────────────────────
+    groups_in_data = df_centroids_g[group_col].unique().tolist()
+    tab_labels = [display_map.get(g, g) for g in groups_in_data]
     tabs = st.tabs(tab_labels)
 
-    for tab, gender_label in zip(tabs, genders_in_data):
+    for tab, group_label in zip(tabs, groups_in_data):
         with tab:
-            c_sub = df_centroids_g[df_centroids_g["gender"] == gender_label].copy()
+            c_sub = df_centroids_g[df_centroids_g[group_col] == group_label].copy()
             p_sub = (
-                df_profile_g[df_profile_g["gender"] == gender_label].copy()
+                df_profile_g[df_profile_g[group_col] == group_label].copy()
                 if df_profile_g is not None else None
             )
-            _render_gender_tab(c_sub, p_sub, gender_label)
+            _render_persona_tab(c_sub, p_sub, group_label, group_col)

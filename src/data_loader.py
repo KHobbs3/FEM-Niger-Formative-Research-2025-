@@ -198,13 +198,6 @@ def load_pp_partner_decision():      return _load_pp("1CWL6zkAIausdpGTAJ_99-AS8t
 def load_pp_partner_norms():         return _load_pp("1frZ0a4TYoA85OBoSOUQUdh7WVj6kFlbn")
 def load_pp_partner_discuss():       return _load_pp("1jCFxGacV2ggeRs74zrwLDmVwCFrL34h_")
 
-# pp_personas_comparison.csv — output of
-# 2_phone pulse/analysis/personas_users_vs_nonusers.py (persona_comparison_full.csv).
-# Stored locally in data/ (not on Drive, unlike the other pp_* loaders above)
-# — re-copy the file here and re-run the app to refresh it.
-def load_pp_personas_comparison():
-    return _load_pp_or_none("1blShx9dKa6HMDGlOBjCSOSwChx8Y2mw8")
-
 
 # ── Media / Access / Social-pressure — NOT YET LIVE ────────────────────────────
 # export_pp_app_data.py now writes these CSVs to niger_app/data/ locally. To
@@ -263,6 +256,9 @@ def load_fp_use_change():            return _load_pp_or_none("1seUEGljG3vNDAIfNp
 
 
 # ── Personas page ─────────────────────────────────────────────────────────────
+# Drive-hosted, like every other page — this app deploys to Streamlit
+# Community Cloud from GitHub, and data/ is gitignored (never committed), so
+# a local-file loader works on your machine but breaks on the deployed app.
 
 # @st.cache_data
 def load_personas_centroids():
@@ -272,7 +268,6 @@ def load_personas_centroids():
 def load_personas_profile():
     return _load("1gbbOIVYiPTV0TKRg2n568I7hlwvcleK4")
 
-
 def load_personas_centroids_by_gender():
     return _load("1q-NolDxH-kw9goSdKPVknYbqrvWYqe7-")
 
@@ -281,6 +276,20 @@ def load_personas_profile_by_gender():
 
 def load_personas_elbow():
     return _load("1qX7CZJpt7S7G9sYYd2bXOREVFgosdWc6")
+
+# By-FP-use split (new — pipeline/etl_personas.py's fp_use clustering).
+# Files are ready locally at niger_app/data/personas_centroids_by_fp_use.csv,
+# personas_profile_by_fp_use.csv, personas_elbow_by_fp_use.csv. Upload each to
+# Drive with "Anyone with the link" viewer sharing, then paste its file ID in
+# place of the matching PASTE_FILE_ID_* placeholder below.
+def load_personas_centroids_by_fp_use():
+    return _load_pp_or_none("PASTE_FILE_ID_personas_centroids_by_fp_use")
+
+def load_personas_profile_by_fp_use():
+    return _load_pp_or_none("PASTE_FILE_ID_personas_profile_by_fp_use")
+
+def load_personas_elbow_by_fp_use():
+    return _load_pp_or_none("PASTE_FILE_ID_personas_elbow_by_fp_use")
 
 
 # ── Shared parsing helpers (used by drivers/barriers) ─────────────────────────
