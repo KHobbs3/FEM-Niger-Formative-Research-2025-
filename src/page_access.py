@@ -181,26 +181,29 @@ def render_accessibility(df_travel, split_col):
 
     st.markdown("**Distance access gap**")
     st.caption(
-        "The *distance access gap* is the share of current/past users who travel "
-        "**longer than they say they are willing to**. "
-        "A higher rate means more people face a real distance barrier — "
-        "they are already using contraceptives despite the journey being too long for them."
+        "Two groups — current/past users vs. everyone else (non-users) — compared on "
+        "how far they say they're willing to travel, and on their reported/expected "
+        "travel time. A gap between the two groups on either measure signals a "
+        "distance barrier; comparing the two charts also shows whether people are "
+        "actually traveling about as far as they say they're willing to."
     )
-    overall = _get_scalar(df_travel, "travel_gap_rate_overall")
-    if not np.isnan(overall):
-        st.metric(
-            "Overall distance access gap (current/past users)",
-            f"{overall*100:.1f}%",
-            help=(
-                "% of current/past users whose actual travel time "
-                "exceeds their stated maximum willingness to travel."
-            ),
+    gap_col1, gap_col2 = st.columns(2)
+    with gap_col1:
+        _hbar(
+            _get_metric(df_travel, "mean_wtt_by_group", "use_binary"),
+            "Average willingness to travel (minutes)",
+            pct=False,
+            caption="Current/past users vs. non-users (nonusers = everyone not a current/past user).",
+            key="wtt_by_group",
         )
-    _hbar(
-        _get_metric(df_travel, "travel_gap_rate", split_col),
-        f"Distance access gap by {split_col}",
-        key="travel_gap",
-    )
+    with gap_col2:
+        _hbar(
+            _get_metric(df_travel, "mean_travel_by_group", "use_binary"),
+            "Average travel time (minutes)",
+            pct=False,
+            caption="Users' actual reported travel time vs. non-users' expected travel time.",
+            key="travel_by_group",
+        )
 
     with st.expander("How do people get to facilities? (transport modes)"):
         c1, c2 = st.columns(2)
