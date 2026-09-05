@@ -113,6 +113,20 @@ def load_fp_nonuse_reasons():
     return _load("1My0suLDCypo9G0xbHdMuaHrUocZJKMix")
 
 
+# 2026-09-04: new output from etl_family_planning.py (ported from
+# benin_app), not yet uploaded to Drive. Run
+# `python pipeline/run_pipeline.py --pages family_planning` to regenerate
+# niger_app/data/fp_unmet.csv, upload it to the same Drive folder as the
+# other fp_*.csv files, and paste its file ID below in place of the
+# placeholder. Returns None (rather than raising) until then, so the page
+# shows its "data not found" message instead of crashing.
+def load_fp_unmet():
+    try:
+        return _load("PLACEHOLDER_FP_UNMET_FILE_ID", index_col=0)
+    except Exception:
+        return None
+
+
 # ── Personality page ──────────────────────────────────────────────────────────
 
 # @st.cache_data
