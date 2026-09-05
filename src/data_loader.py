@@ -272,15 +272,15 @@ def load_fp_use_change():            return _load_pp_or_none("1seUEGljG3vNDAIfNp
 #   cd 3_linkage && python link_respondents.py && python compare_unmet_need.py
 # then upload outputs/unmet_need_change_summary.csv to Drive and paste its
 # file ID in place of the placeholder below.
-def load_unmet_need_change():        return _load_pp_or_none("PASTE_FILE_ID_UNMET_NEED_CHANGE")
+def load_unmet_need_change():        return _load_pp_or_none("1kdJMRPY33t4JCLKb9Ct5HDaMtT3yrbW1")
 
 # Same deal for compare_method_switching.py's output. Generate it with:
 #   cd 3_linkage && python compare_method_switching.py
 # then upload outputs/method_switching_summary.csv and
 # outputs/method_switching_crosstab.csv to Drive and paste their file IDs in
 # place of the placeholders below.
-def load_method_switching():         return _load_pp_or_none("PASTE_FILE_ID_method_switching_summary")
-def load_method_switching_crosstab(): return _load_pp_or_none("PASTE_FILE_ID_method_switching_crosstab")
+def load_method_switching():         return _load_pp_or_none("1Cb8UuxaA2bwAESTpPIOlCrWyyf5uJuqc")
+def load_method_switching_crosstab(): return _load_pp_or_none("17cqQzQKlD5MTWYXPTuu6Tg9EZa9eXRrc")
 
 
 # ── Personas page ─────────────────────────────────────────────────────────────
