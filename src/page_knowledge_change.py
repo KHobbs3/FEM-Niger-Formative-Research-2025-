@@ -4,7 +4,10 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 
-from src.data_loader import load_knowledge_change, load_fp_use_change
+from src.data_loader import (
+    load_knowledge_change, load_fp_use_change,
+    load_method_switching, load_method_switching_crosstab,
+)
 
 FEM_ORANGE = "#C1693A"
 FEM_NAVY   = "#2E3F52"
@@ -239,6 +242,93 @@ def _render_fp_use() -> None:
     )
 
 
+def _render_method_switching() -> None:
+    df = load_method_switching()
+    if df is None:
+        _pending("method_switching_summary")
+        return
+    if df.empty:
+        st.info("No data available.")
+        return
+
+    st.caption(
+        "Whether respondents who reported using a **traditional** method "
+        "(withdrawal or calendar/rhythm) at baseline had switched to a "
+        "**modern/effective** method by follow-up, for the SAME 471 "
+        "respondents linked across both waves — see \"How this comparison "
+        "works\" above."
+    )
+    _render_questions_asked(
+        "\"Which method(s) are you currently using?\" (multi-select; English "
+        "hint on the SurveyCTO form, asked in Hausa in the field).",
+        "\"Which method(s) are you currently using?\" (multi-select, asked "
+        "of respondents who said yes to currently using something).",
+        sources=[
+            "field `current_use_methods`, `label`/`hint` columns — "
+            "`1_formative_research/table_analysis/data/1_raw/Ha-Fr_Collecte de "
+            "Données sur le Terrain.xlsx`, sheet `survey`.",
+            "field `fpbeh_which`, `label`/`hint` columns — `2_phone pulse/meta/"
+            "Participants_Appels de Suivi.xlsx`, sheet `survey`.",
+        ],
+    )
+    st.caption(
+        "Modern vs. traditional follows the same DHS/FP2020 convention used "
+        "elsewhere in this app: everything except withdrawal and "
+        "calendar/rhythm counts as modern. Respondents using more than one "
+        "method are classified by the most effective one they selected. "
+        "Formative \"Abstinence\" and Pulse \"Other traditional\" have no "
+        "equivalent on the other survey and are excluded from both categories "
+        "(counted as \"None/other\")."
+    )
+    st.markdown("---")
+
+    row_users = df[df["metric"].str.startswith("% of baseline traditional")].iloc[0]
+    row_women = df[df["metric"].str.contains("all linked women")].iloc[0]
+
+    col1, col2 = st.columns(2)
+    col1.metric(
+        "Of baseline traditional-method users, now on a modern method",
+        f"{row_users['pct']:.1f}%" if pd.notna(row_users["pct"]) else "N/A",
+        help=f"{int(row_users['numerator_n'])} of {int(row_users['denominator_n'])} — "
+             f"{row_users['denominator_description']}",
+    )
+    col2.metric(
+        "Of all linked women, switched traditional → modern",
+        f"{row_women['pct']:.1f}%" if pd.notna(row_women["pct"]) else "N/A",
+        help=f"{int(row_women['numerator_n'])} of {int(row_women['denominator_n'])} — "
+             f"{row_women['denominator_description']}",
+    )
+
+    if row_users["denominator_n"] < 10:
+        st.warning(
+            f"⚠️ Only **{int(row_users['denominator_n'])}** linked respondent(s) "
+            "reported using a traditional method at baseline in the first "
+            "place — almost everyone who reported using anything at baseline "
+            "was already on a modern method (see the crosstab below). The "
+            "\"% of baseline traditional users\" figure above is not "
+            "statistically meaningful at this sample size; the \"% of all "
+            "women\" figure is better-powered but its numerator is "
+            "necessarily just as small, for the same reason."
+        )
+
+    st.markdown("#### Baseline category → follow-up category (all linked respondents)")
+    crosstab = load_method_switching_crosstab()
+    if crosstab is not None and not crosstab.empty:
+        crosstab = crosstab.rename(columns={crosstab.columns[0]: "Baseline \\ Follow-up"})
+        st.dataframe(crosstab, use_container_width=True, hide_index=True)
+        st.caption(
+            "Rows = baseline category, columns = follow-up category. The "
+            "\"None/other → Modern\" cell is the more common story in this "
+            "data: new modern-method uptake, not traditional-to-modern "
+            "switching specifically."
+        )
+    else:
+        st.info(
+            "Data pending: upload `method_switching_crosstab.csv` to Drive "
+            "and paste its file ID into `data_loader.py`."
+        )
+
+
 def _render_limitations() -> None:
     with st.expander("Limitations & caveats"):
         st.markdown(
@@ -286,10 +376,13 @@ def render() -> None:
             "n_after_qa.",
         ])
 
-    tab1, tab2 = st.tabs(["Method Awareness", "Current FP Use"])
+    tab1, tab2, tab3 = st.tabs(["Method Awareness", "Current FP Use", "Method Switching"])
     with tab1:
         _render_method_awareness()
         _render_limitations()
     with tab2:
         _render_fp_use()
+        _render_limitations()
+    with tab3:
+        _render_method_switching()
         _render_limitations()

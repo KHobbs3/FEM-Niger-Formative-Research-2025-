@@ -268,6 +268,14 @@ def load_knowledge_change():         return _load_pp("1SIp5w07_e2Q7QwZAkAqW-FdQE
 # ID in place of the placeholder below.
 def load_fp_use_change():            return _load_pp_or_none("1seUEGljG3vNDAIfNp61_bvYElpYqYL6M")
 
+# Same deal for compare_method_switching.py's output. Generate it with:
+#   cd 3_linkage && python compare_method_switching.py
+# then upload outputs/method_switching_summary.csv and
+# outputs/method_switching_crosstab.csv to Drive and paste their file IDs in
+# place of the placeholders below.
+def load_method_switching():         return _load_pp_or_none("PASTE_FILE_ID_method_switching_summary")
+def load_method_switching_crosstab(): return _load_pp_or_none("PASTE_FILE_ID_method_switching_crosstab")
+
 
 # ── Personas page ─────────────────────────────────────────────────────────────
 # Drive-hosted, like every other page — this app deploys to Streamlit
