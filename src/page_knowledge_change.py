@@ -7,6 +7,7 @@ import pandas as pd
 from src.data_loader import (
     load_knowledge_change, load_fp_use_change,
     load_method_switching, load_method_switching_crosstab,
+    load_unmet_need_change,
 )
 
 FEM_ORANGE = "#C1693A"
@@ -329,6 +330,105 @@ def _render_method_switching() -> None:
         )
 
 
+def _render_unmet_need() -> None:
+    """Unmet need for contraception, baseline vs. follow-up — same headline
+    metric as the Formative Research Family Planning page's "Unmet need &
+    unmet demand" section (etl_family_planning.py's fp_unmet.csv), but here
+    paired across the SAME 471 linked respondents. 2026-09-04."""
+    df = load_unmet_need_change()
+    if df is None:
+        _pending("unmet_need_change_summary")
+        return
+    if df.empty:
+        st.info("No data available.")
+        return
+
+    st.caption(
+        "Unmet need for contraception, Formative Research baseline vs. Phone "
+        "Pulse follow-up, for the SAME 471 respondents linked across both "
+        "waves (not all 968 baseline respondents — see \"How this comparison "
+        "works\" above)."
+    )
+    _render_questions_asked(
+        "\"How soon would you like to have your next child?\" (English hint "
+        "on the SurveyCTO form; asked in Hausa in the field), combined with "
+        "\"Are you currently doing something or using any method to delay "
+        "or avoid getting pregnant?\"",
+        "\"Do you want to have (more) children?\" combined with \"Are you "
+        "currently pregnant?\" and \"Are you currently doing something or "
+        "using any method to delay or avoid (your wife) getting pregnant?\"",
+        sources=[
+            "field `time_before_preferred_pregnancy`, `label`/`hint` columns "
+            "— `1_formative_research/table_analysis/data/1_raw/Ha-Fr_Collecte "
+            "de Données sur le Terrain.xlsx`, sheet `survey`; field `current_use`.",
+            "field `chldr_other_none_yet`, `label` column — `2_phone pulse/"
+            "meta/Participants_Appels de Suivi.xlsx`, sheet `survey`; fields "
+            "`current_pregnant`, `fpbeh_fpnow`.",
+        ],
+    )
+    st.warning(
+        "⚠️ **Not apples-to-apples, and narrower than the Family Planning "
+        "page's \"Unmet need\" figure**: baseline's unmet-need definition "
+        "there also counts women who want to delay their next pregnancy by "
+        "1+ years — that question (`time_before_preferred_pregnancy`) has no "
+        "equivalent at follow-up, which only asks whether she wants **any** "
+        "more children (`chldr_other_none_yet`). To keep both sides "
+        "comparable, this tab uses the narrower \"wants no more children AND "
+        "not currently using any method\" definition on **both** waves — so "
+        "the baseline % below will be lower than the Family Planning page's "
+        "headline unmet-need figure for the same respondents."
+    )
+    st.markdown("---")
+
+    row = df.iloc[0]
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Unmet need at baseline", f"{row['unmet_need_baseline_pct']:.1f}%")
+    col2.metric(
+        "Unmet need at follow-up", f"{row['unmet_need_pulse_pct']:.1f}%",
+        delta=f"{row['unmet_need_pulse_pct'] - row['unmet_need_baseline_pct']:+.1f} pts",
+        delta_color="inverse",  # rising unmet need is the bad direction
+    )
+    col3.metric(
+        "Newly unmet / Newly met",
+        f"{int(row['increased_unmet_n'])} / {int(row['decreased_unmet_n'])}",
+    )
+
+    p_value = row.get("mcnemar_p_value")
+    direction = row.get("direction", "")
+    if pd.notna(p_value):
+        sig_note = (
+            f"Statistically significant (McNemar's exact test, p = {p_value:.4f})"
+            if p_value < SIG_THRESHOLD else
+            f"Not statistically significant (McNemar's exact test, p = {p_value:.4f})"
+        )
+        st.caption(f"{direction.capitalize() if direction else ''} — {sig_note}".strip(" —"))
+
+    fig = go.Figure(go.Bar(
+        x=[row["unmet_need_baseline_pct"], row["unmet_need_pulse_pct"]],
+        y=["Baseline", "Follow-up"],
+        orientation="h",
+        marker_color=[FEM_TAUPE, FEM_NAVY],
+        text=[f"{row['unmet_need_baseline_pct']:.1f}%", f"{row['unmet_need_pulse_pct']:.1f}%"],
+        textposition="outside",
+    ))
+    fig.update_layout(
+        **_CHART,
+        title=row.get("question", "Unmet need for contraception"),
+        xaxis_title="% of linked respondents",
+        xaxis_range=[0, max(row["unmet_need_baseline_pct"], row["unmet_need_pulse_pct"]) * 1.5 + 5],
+        height=260,
+        margin=dict(l=10, r=30, t=78, b=10),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "\"Newly unmet\" = need was met at baseline, unmet at follow-up. "
+        "\"Newly met\" = the reverse. Unmet demand and demand-satisfied "
+        "(shown on the Family Planning page) aren't included here — Phone "
+        "Pulse never asked the future-intent-to-use question those metrics "
+        "need."
+    )
+
+
 def _render_limitations() -> None:
     with st.expander("Limitations & caveats"):
         st.markdown(
@@ -376,7 +476,9 @@ def render() -> None:
             "n_after_qa.",
         ])
 
-    tab1, tab2, tab3 = st.tabs(["Method Awareness", "Current FP Use", "Method Switching"])
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Method Awareness", "Current FP Use", "Method Switching", "Unmet Need",
+    ])
     with tab1:
         _render_method_awareness()
         _render_limitations()
@@ -385,4 +487,7 @@ def render() -> None:
         _render_limitations()
     with tab3:
         _render_method_switching()
+        _render_limitations()
+    with tab4:
+        _render_unmet_need()
         _render_limitations()

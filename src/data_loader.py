@@ -268,6 +268,12 @@ def load_knowledge_change():         return _load_pp("1SIp5w07_e2Q7QwZAkAqW-FdQE
 # ID in place of the placeholder below.
 def load_fp_use_change():            return _load_pp_or_none("1seUEGljG3vNDAIfNp61_bvYElpYqYL6M")
 
+# Same deal for compare_unmet_need.py's output (2026-09-04). Generate it with:
+#   cd 3_linkage && python link_respondents.py && python compare_unmet_need.py
+# then upload outputs/unmet_need_change_summary.csv to Drive and paste its
+# file ID in place of the placeholder below.
+def load_unmet_need_change():        return _load_pp_or_none("PASTE_FILE_ID_UNMET_NEED_CHANGE")
+
 # Same deal for compare_method_switching.py's output. Generate it with:
 #   cd 3_linkage && python compare_method_switching.py
 # then upload outputs/method_switching_summary.csv and

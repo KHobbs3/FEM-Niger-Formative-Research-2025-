@@ -197,7 +197,10 @@ def render_persona_profiles(df_profile, n_personas, group_label=None):
         c1.metric("Respondents", f"{int(n[0]):,}" if len(n) else "N/A")
         c2.metric("Weighted N", f"{wn[0]:,.0f}" if len(wn) else "N/A")
 
-    profile_vars = [v for v in sub["variable"].unique() if not v.startswith("_")]
+    profile_vars = [
+        v for v in sub["variable"].unique()
+        if not v.startswith("_") and v != "life_goals_other_specify"
+    ]
     cols = st.columns(2)
     for i, var in enumerate(profile_vars):
         var_sub = sub[sub["variable"] == var]
@@ -212,13 +215,32 @@ def render_persona_profiles(df_profile, n_personas, group_label=None):
                 _hbar(s, var.replace("_", " ").title(),
                       key=f"persona_{key_suffix}_{persona_id}_{var}")
 
+    # "Other" life goal, verbatim: life_goals clusters on raw label text, so
+    # a persona whose modal life goal is "Other" would otherwise be a dead
+    # end. Show the actual "Please specify" free-text answers instead of a
+    # proportion chart -- with 1-8 respondents typically saying "Other" per
+    # persona, a bar chart of % would be misleading noise anyway.
+    other_sub = sub[sub["variable"] == "life_goals_other_specify"]
+    if not other_sub.empty:
+        n_specified_row = count_row[count_row["value"] == "n_life_goals_specified"]
+        n_specified = int(n_specified_row["proportion"].iloc[0]) if not n_specified_row.empty else None
+        label = f"\"Other\" life goal — what respondents specified"
+        if n_specified:
+            label += f" (n={n_specified})"
+        st.markdown(f"**{label}**")
+        for _, row in other_sub.sort_values("proportion", ascending=False).iterrows():
+            st.markdown(f"- “{row['value']}”")
+
 
 def render_comparison(df_profile, n_personas, group_label=None):
     key_suffix = group_label.replace(" ", "_").replace("/", "") if group_label else "overall"
     st.subheader("Persona comparison")
     st.caption("Compare the distribution of one variable across all personas.")
 
-    profile_vars = [v for v in df_profile["variable"].unique() if not v.startswith("_")]
+    profile_vars = [
+        v for v in df_profile["variable"].unique()
+        if not v.startswith("_") and v != "life_goals_other_specify"
+    ]
     selected_var = st.selectbox(
         "Select variable", profile_vars,
         format_func=lambda v: v.replace("_", " ").title(),
