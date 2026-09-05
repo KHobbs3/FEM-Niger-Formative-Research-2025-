@@ -117,10 +117,17 @@ def _hbar(series, title, top_n=10, key=None):
 
 def render_elbow_plot(df_elbow, group_col, display_map, colors_map, legend_title):
     st.subheader("Choosing the number of clusters")
+    has_auto_k = "selected" in df_elbow.columns
     st.caption(
         "Each line shows the within-cluster cost (sum of dissimilarities) for "
         f"k = 1 – 6 clusters, computed separately per {legend_title.lower()}. "
-        "The 'elbow' — where the curve flattens — indicates the optimal k."
+        + (
+            "The starred point is the auto-selected k for that group — the "
+            "point of maximum curvature (kneedle method) on its own cost curve, "
+            "picked independently per group rather than a single fixed k for all."
+            if has_auto_k else
+            "The 'elbow' — where the curve flattens — indicates the optimal k."
+        )
     )
 
     groups = df_elbow[group_col].unique()
@@ -136,6 +143,18 @@ def render_elbow_plot(df_elbow, group_col, display_map, colors_map, legend_title
             line=dict(color=color, width=2),
             marker=dict(size=7),
         ))
+        if has_auto_k:
+            picked = sub[sub["selected"]]
+            if not picked.empty:
+                fig.add_trace(go.Scatter(
+                    x=picked["k"], y=picked["cost"],
+                    mode="markers",
+                    name=f"{label} — selected k",
+                    marker=dict(size=16, symbol="star", color=color,
+                               line=dict(color="white", width=1)),
+                    showlegend=False,
+                    hovertemplate=f"{label}: auto-selected k=%{{x}}<extra></extra>",
+                ))
 
     fig.update_layout(
         xaxis=dict(title="Number of clusters (k)", dtick=1, showgrid=False),
